@@ -17,3 +17,5 @@
 ## 发布方式
 
 推送 `main` 分支后，两个独立 GitHub Actions 工作流分别部署 GitHub Pages 与 Cloudflare Pages。项目不包含定时取数或自动更新任务。
+
+Cloudflare 工作流会自动创建 Pages 项目；新仓库只需配置 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN` 两个 Actions Secret。
