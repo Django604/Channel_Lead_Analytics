@@ -1,0 +1,20 @@
+# 该仓库只发布网站本体；默认业务数据、模板和本地产物不进入 GitHub。
+/*
+!/.github/
+!/.gitignore
+!/README.md
+!/index.html
+!/ui-optimized.css
+!/ui-optimized.js
+!/package.json
+!/package-lock.json
+!/图标库/
+
+/图标库/*
+!/图标库/nissan-relief-hero-mobile.webp
+!/图标库/nissan-relief-hero-tablet.webp
+!/图标库/nissan-white-mark.png
+!/图标库/黑白简易.png
+
+# 本文件包含默认业务数据；部署时由工作流生成空数据占位文件。
+/report-data.js
