@@ -35,10 +35,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p site/node_modules/echarts/dist site/node_modules/xlsx/dist site/图标库
+          mkdir -p site/vendor site/图标库
           cp index.html ui-optimized.css ui-optimized.js site/
-          cp node_modules/echarts/dist/echarts.min.js site/node_modules/echarts/dist/
-          cp node_modules/xlsx/dist/xlsx.full.min.js site/node_modules/xlsx/dist/
+          cp node_modules/echarts/dist/echarts.min.js site/vendor/
+          cp node_modules/xlsx/dist/xlsx.full.min.js site/vendor/
+          sed -i 's#node_modules/echarts/dist/echarts.min.js#vendor/echarts.min.js#g; s#node_modules/xlsx/dist/xlsx.full.min.js#vendor/xlsx.full.min.js#g' site/index.html
           cp 图标库/nissan-relief-hero-mobile.webp 图标库/nissan-relief-hero-tablet.webp 图标库/nissan-white-mark.png 图标库/黑白简易.png site/图标库/
           cat > site/report-data.js <<'EOF'
           window.REPORT_DATA = {"generatedAt":"","sourceFile":"","sourceSheet":"","rowCount":0,"skippedRows":0,"dateMin":"","dateMax":"","dates":[],"months":[],"regions":[],"subregions":[],"provinces":[],"cities":[],"groups":[],"dealerCodes":[],"dealers":[],"channels":[],"projects":[],"medias":[],"models":[],"availableDimensions":[],"completeDimensions":[],"missingDimensions":["date","month","region","subregion","province","city","group","dealerCode","dealer","channel","project","media","model"],"schema":["newLead","validLead","newStoreVisit","validTestDrive","bigOrder","lockOrder","delivery"],"rows":[],"costs":{"sourceFile":"","generatedAt":"","feeBasis":"","feeBearingChannels":[],"noFeeChannels":[],"channelFees":{},"mediaFees":[],"benchmarkRates":{},"overallFees":{}}};
