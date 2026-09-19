@@ -9618,6 +9618,132 @@
           }
         }
 
+        function createExcelUploadWorkerSource() {
+          const xlsxUrl = new URL("node_modules/xlsx/dist/xlsx.full.min.js", window.location.href).href;
+          const workerFunctions = [
+            formatLocalDate,
+            readWorksheetRows,
+            normalizeHeaderName,
+            buildHeaderIndex,
+            findHeaderLayout,
+            getRequiredMetricLabels,
+            findSourceTable,
+            decodeXmlEntities,
+            getWorkbookFileContent,
+            contentToBytes,
+            contentToText,
+            parseSharedStrings,
+            columnNameToIndex,
+            parseWorksheetRow,
+            cleanUploadedChannel,
+            createDatasetBuilder,
+            buildDatasetFromRows,
+            getWorksheetFileEntries,
+            buildDatasetFromWorkbookFiles,
+            buildDatasetFromWorkbook,
+            getDatasetLevelSignature,
+            assertSameLevelDatasets,
+            mergeDatasets,
+          ].map((workerFunction) => workerFunction.toString()).join("\n\n");
+
+          return `
+            "use strict";
+            importScripts(${JSON.stringify(xlsxUrl)});
+            const DATASET_DIMENSION_FIELDS = ${JSON.stringify(DATASET_DIMENSION_FIELDS)};
+            const DATASET_METRIC_FIELDS = ${JSON.stringify(DATASET_METRIC_FIELDS)};
+            const DATASET_HEADER_FIELDS = [...DATASET_DIMENSION_FIELDS, ...DATASET_METRIC_FIELDS];
+            const REQUIRED_DATASET_METRIC_KEYS = new Set(${JSON.stringify([...REQUIRED_DATASET_METRIC_KEYS])});
+            const HEADER_SCAN_LIMIT = ${HEADER_SCAN_LIMIT};
+            const HEADER_DEPTH_LIMIT = ${HEADER_DEPTH_LIMIT};
+            ${workerFunctions}
+
+            self.onmessage = async (event) => {
+              try {
+                const files = event.data.files || [];
+                const datasets = [];
+                for (let index = 0; index < files.length; index += 1) {
+                  const file = files[index];
+                  self.postMessage({ type: "file-start", index });
+                  const buffer = await file.arrayBuffer();
+                  const workbook = XLSX.read(buffer, { type: "array", cellDates: true, raw: true, bookFiles: true, dense: true });
+                  const dataset = await buildDatasetFromWorkbook(workbook, file.name);
+                  datasets.push(dataset);
+                  self.postMessage({ type: "file-success", index, rowCount: dataset.rowCount });
+                }
+                self.postMessage({ type: "finalizing" });
+                const payload = JSON.stringify(mergeDatasets(datasets));
+                self.postMessage({ type: "complete", payload });
+              } catch (error) {
+                self.postMessage({ type: "failure", message: error?.message || String(error) });
+              }
+            };
+          `;
+        }
+
+        function parseUploadedFilesInWorker(files, onProgress) {
+          if (!window.Worker || !window.Blob || !window.URL?.createObjectURL) {
+            const error = new Error("当前浏览器不支持后台解析");
+            error.workerUnavailable = true;
+            return Promise.reject(error);
+          }
+
+          let worker;
+          let workerUrl = "";
+          try {
+            workerUrl = URL.createObjectURL(new Blob([createExcelUploadWorkerSource()], { type: "text/javascript" }));
+            worker = new Worker(workerUrl);
+          } catch (workerError) {
+            if (workerUrl) URL.revokeObjectURL(workerUrl);
+            workerError.workerUnavailable = true;
+            return Promise.reject(workerError);
+          }
+
+          return new Promise((resolve, reject) => {
+            const dispose = () => {
+              worker.terminate();
+              URL.revokeObjectURL(workerUrl);
+            };
+            worker.onmessage = (event) => {
+              const message = event.data || {};
+              if (["file-start", "file-success", "finalizing"].includes(message.type)) {
+                onProgress(message);
+                return;
+              }
+              dispose();
+              if (message.type === "complete") {
+                try {
+                  resolve(JSON.parse(message.payload));
+                } catch (parseError) {
+                  reject(new Error(`后台解析结果读取失败：${parseError.message}`));
+                }
+              } else {
+                reject(new Error(message.message || "Excel 后台解析失败"));
+              }
+            };
+            worker.onerror = (event) => {
+              dispose();
+              const error = new Error(event.message || "Excel 后台解析无法启动");
+              error.workerUnavailable = true;
+              reject(error);
+            };
+            worker.postMessage({ files });
+          });
+        }
+
+        async function parseUploadedFilesOnMainThread(files, onProgress) {
+          const datasets = [];
+          for (let index = 0; index < files.length; index += 1) {
+            onProgress({ type: "file-start", index });
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            const buffer = await files[index].arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: "array", cellDates: true, raw: true, bookFiles: true, dense: true });
+            const parsedDataset = await buildDatasetFromWorkbook(workbook, files[index].name);
+            datasets.push(parsedDataset);
+            onProgress({ type: "file-success", index, rowCount: parsedDataset.rowCount });
+          }
+          return mergeDatasets(datasets);
+        }
+
         async function processUploadedFiles(files) {
           if (!files.length || state.uploadStatus === "running") return;
           state.uploadStatus = "running";
@@ -9632,20 +9758,28 @@
             showUploadWorkspaceLoading(files);
             await new Promise((resolve) => requestAnimationFrame(resolve));
             if (!isRenderTaskCurrent(taskId)) return;
-            const datasets = [];
-            for (let index = 0; index < files.length; index += 1) {
-              activeFileIndex = index;
-              const file = files[index];
-              showUploadWorkspaceLoading(files, index);
-              updateUploadFileResult(index, "running", "正在识别");
-              await new Promise((resolve) => requestAnimationFrame(resolve));
-              const buffer = await file.arrayBuffer();
-              const workbook = XLSX.read(buffer, { type: "array", cellDates: true, raw: true, bookFiles: true });
-              const parsedDataset = await buildDatasetFromWorkbook(workbook, file.name);
-              datasets.push(parsedDataset);
-              updateUploadFileResult(index, "success", `识别 ${formatNumber(parsedDataset.rowCount)} 行`);
+            const updateProgress = (message) => {
+              if (message.type === "finalizing") {
+                state.uploadSummary = `共 ${files.length} 份文件，正在合并并应用识别结果`;
+                renderUploadModal();
+                return;
+              }
+              activeFileIndex = message.index;
+              showUploadWorkspaceLoading(files, message.index);
+              if (message.type === "file-start") {
+                updateUploadFileResult(message.index, "running", "正在后台识别");
+              } else {
+                updateUploadFileResult(message.index, "success", `识别 ${formatNumber(message.rowCount)} 行`);
+              }
+            };
+            let dataset;
+            try {
+              dataset = await parseUploadedFilesInWorker(files, updateProgress);
+            } catch (workerError) {
+              if (!workerError.workerUnavailable) throw workerError;
+              console.warn("后台解析不可用，已切换兼容模式", workerError);
+              dataset = await parseUploadedFilesOnMainThread(files, updateProgress);
             }
-            const dataset = mergeDatasets(datasets);
             const sourceLabel = files.length === 1
               ? `页面上传数据：${files[0].name}`
               : `页面上传数据：${files.length} 个文件`;
