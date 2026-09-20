@@ -118,7 +118,7 @@
 
     if (isModelView) {
       const model = route.params.get("model") || getFirstAvailableModel();
-      brandName.textContent = `${model} 车型分析`;
+      brandName.textContent = model === "全部" ? "全车型分析" : `${model} 车型分析`;
       brandSub.textContent = "MODEL INTELLIGENCE";
       sidebarLabel.textContent = "车型工作台";
       if (skipLink) skipLink.href = "#focusSection";

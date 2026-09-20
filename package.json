@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "build:data": "python scripts/build_report.py",
-    "package:portable": "node scripts/package-portable.js"
+    "package:portable": "node scripts/package-portable.js",
+    "verify:model-focus": "node scripts/verify-model-focus.js"
   },
   "dependencies": {
     "echarts": "^6.1.0",

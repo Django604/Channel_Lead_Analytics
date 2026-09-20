@@ -3197,14 +3197,15 @@
         <div class="section-head">
           <div>
             <h2 class="section-title" id="drillViewTitle">车型下钻分析</h2>
+            <p class="section-note" id="modelScopeSummary">选择车型后查看漏斗、趋势与渠道拆解。</p>
           </div>
           <div class="section-actions">
             <button class="btn btn-subtle" data-action="go-home">返回首页</button>
             <div class="segment-group" id="dimensionTabs">
-              <button class="segment-btn is-active" data-action="switch-dimension" data-dimension="model">车型</button>
-              <button class="segment-btn" data-action="switch-dimension" data-dimension="channel">渠道</button>
-              <button class="segment-btn" data-action="switch-dimension" data-dimension="project">大项目</button>
-              <button class="segment-btn" data-action="switch-dimension" data-dimension="media">媒体</button>
+              <button class="segment-btn is-active" data-action="switch-dimension" data-dimension="model">车型对比</button>
+              <button class="segment-btn" data-action="switch-dimension" data-dimension="channel">渠道拆解</button>
+              <button class="segment-btn" data-action="switch-dimension" data-dimension="project">项目拆解</button>
+              <button class="segment-btn" data-action="switch-dimension" data-dimension="media">媒体拆解</button>
             </div>
             <div class="capsule" id="analysisCapsule">-</div>
           </div>
@@ -3688,6 +3689,7 @@
           alertSection: document.getElementById("alertSection"),
           overviewSection: document.getElementById("overviewSection"),
           focusSection: document.getElementById("focusSection"),
+          modelScopeSummary: document.getElementById("modelScopeSummary"),
           drillSection: document.getElementById("drillSection"),
           surgeThresholdSelect: document.getElementById("surgeThresholdSelect"),
           surgeCapsule: document.getElementById("surgeCapsule"),
@@ -4000,14 +4002,54 @@
           window.location.hash = next;
         }
 
+        function syncFocusedModel(model, resetDependentDrill = false) {
+          const nextModel = model || "全部";
+          if (resetDependentDrill) {
+            const stageId = state.drill.stageId || getCurrentStageId();
+            state.drill = { ...createDefaultDrill(), stageId, model: nextModel };
+            state.expandedDetailProjects = {};
+            state.channelMatrixStartDate = "";
+            state.channelMatrixEndDate = "";
+          } else {
+            state.drill.model = nextModel;
+          }
+          if ([...els.modelSelect.options].some((option) => option.value === nextModel)) {
+            els.modelSelect.value = nextModel;
+          }
+          const selectedModels = getSelectedValues(els.compareModelSelect).filter((item) => item !== nextModel);
+          setSelectedValues(els.compareModelSelect, selectedModels.length ? selectedModels : getDefaultCompareModels());
+        }
+
+        function getFocusedModel() {
+          if (state.view === "model-drill") return state.drill.model || els.modelSelect.value || "全部";
+          return els.modelSelect.value || "全部";
+        }
+
+        function resetModelAnalysisScope() {
+          const focusedModel = getFocusedModel();
+          const stageId = state.drill.stageId || getCurrentStageId();
+          if (hasUsableDateDimension()) {
+            els.startDate.value = state.dataset.dateMin;
+            els.endDate.value = state.dataset.dateMax;
+          }
+          setAreaFilters("全部", "全部");
+          els.channelSelect.value = "全部";
+          state.drill = { ...createDefaultDrill(), stageId, model: focusedModel };
+          state.expandedDetailProjects = {};
+          state.channelMatrixStartDate = "";
+          state.channelMatrixEndDate = "";
+          renderAll();
+        }
+
         function applyRoute() {
           if (!state.dataset) return;
           const { view, params } = parseRouteHash();
           if (view === "model-drill") {
             const model = params.get("model") || "";
-            if (state.dataset.models.includes(model)) {
+            if (model === "全部" || state.dataset.models.includes(model)) {
+              const modelChanged = state.view !== "model-drill" || state.drill.model !== model;
               state.view = "model-drill";
-              state.drill.model = model;
+              syncFocusedModel(model, modelChanged);
             } else {
               state.view = "home";
               if (window.location.hash !== "#home") window.location.hash = "#home";
@@ -4041,7 +4083,9 @@
           els.focusSection.classList.toggle("is-hidden", !isDrillView);
           els.drillSection.classList.toggle("is-hidden", !isDrillView);
           els.drillViewTitle.textContent = isDrillView
-            ? `${formatDimensionText("model", state.drill.model)} 下钻分析`
+            ? state.drill.model === "全部"
+              ? "全车型分析"
+              : `${formatDimensionText("model", state.drill.model)} 车型分析`
             : "车型下钻分析";
           if (!isDrillView) {
             disposeChart("trend");
@@ -6258,6 +6302,13 @@
             focusVisible && state.compareEnabled && compareFilters?.startDate && compareFilters?.endDate
               ? filterRowsByFilters(state.dataset.rows, compareFilters)
               : [];
+          const peerModelRows = focusVisible
+            ? filterRowsByFilters(state.dataset.rows, { ...mainFilters, model: "全部" })
+            : [];
+          const comparePeerModelRows =
+            focusVisible && state.compareEnabled && compareFilters?.startDate && compareFilters?.endDate
+              ? filterRowsByFilters(state.dataset.rows, { ...compareFilters, model: "全部" })
+              : [];
           const drilledMainRows = focusVisible ? applyDrillFilters(mainRows) : applyDrillFilters(state.dataset.rows);
           const drilledCompareRows = focusVisible ? applyCompareDrillFilters(compareRows) : [];
 
@@ -6279,15 +6330,17 @@
             "channel"
           );
           const modelRows = summarizeByDimension(
-            focusVisible ? applyDrillFilters(mainRows, getDimensionExcludes("model")) : applyDrillFilters(state.dataset.rows, getDimensionExcludes("model")),
-            focusVisible ? applyCompareDrillFilters(compareRows, getDimensionExcludes("model")) : [],
+            focusVisible ? applyDrillFilters(peerModelRows, getDimensionExcludes("model")) : applyDrillFilters(state.dataset.rows, getDimensionExcludes("model")),
+            focusVisible ? applyCompareDrillFilters(comparePeerModelRows, getDimensionExcludes("model")) : [],
             "model"
           );
+          const primaryCurrentRows = state.dimensionMode === "model" ? peerModelRows : mainRows;
+          const primaryCompareRows = state.dimensionMode === "model" ? comparePeerModelRows : compareRows;
           const primaryRows = getDimensionRows(
             focusVisible
-              ? applyDrillFilters(mainRows, getDimensionExcludes(state.dimensionMode))
+              ? applyDrillFilters(primaryCurrentRows, getDimensionExcludes(state.dimensionMode))
               : applyDrillFilters(state.dataset.rows, getDimensionExcludes(state.dimensionMode)),
-            focusVisible ? applyCompareDrillFilters(compareRows, getDimensionExcludes(state.dimensionMode)) : [],
+            focusVisible ? applyCompareDrillFilters(primaryCompareRows, getDimensionExcludes(state.dimensionMode)) : [],
             state.dimensionMode
           );
           const secondaryDimension = getSecondaryDimension(state.dimensionMode);
@@ -8550,6 +8603,7 @@
         function renderFocus(viewModel, options = {}) {
           if (!viewModel.focusVisible) {
             els.analysisCapsule.textContent = "-";
+            els.modelScopeSummary.textContent = "选择车型后查看漏斗、趋势与渠道拆解。";
             els.focusShell.innerHTML = "";
             disposeChart("trend");
             disposeChart("conversion");
@@ -8559,16 +8613,11 @@
             return;
           }
 
-          const shellCreated = ensureFocusShell();
-          const dimensionOnly = options.dimensionOnly === true && !shellCreated;
           const compareVisible = state.compareEnabled && viewModel.compareStages.length > 0;
           const mainLabel = formatAnalysisRange(viewModel.mainFilters.startDate, viewModel.mainFilters.endDate);
-          const compareModelLabel =
-            compareVisible && Array.isArray(viewModel.compareFilters.model)
-              ? viewModel.compareFilters.model.join("、")
-              : viewModel.compareFilters?.model || "全部";
+          const focusedModel = getFocusedModel();
+          const focusedModelLabel = focusedModel === "全部" ? "全车型" : formatDimensionText("model", focusedModel);
           const compareDateLabel = compareVisible ? `${viewModel.compareFilters.startDate} ~ ${viewModel.compareFilters.endDate}` : "";
-          const compareLabel = compareVisible ? compareModelLabel : "未加入对比";
           const activeCostMetric = getActiveCostMetric(viewModel);
           const dimensionTextMap = {
             model: "车型维度",
@@ -8581,7 +8630,35 @@
             viewModel.sameChannelValue && viewModel.sameChannelValue !== "全部"
               ? `同渠道对比 · ${formatDimensionText("channel", viewModel.sameChannelValue)}`
               : "同渠道对比";
-          els.analysisCapsule.textContent = `${dimensionTextMap[state.dimensionMode]} · ${mainLabel}${compareVisible ? ` · 对比 ${compareDateLabel} · ${compareLabel}` : ""}`;
+          const regionLabel = viewModel.mainFilters.region === "全部" ? "全部大区" : viewModel.mainFilters.region;
+          const subregionLabel = viewModel.mainFilters.subregion === "全部" ? "全部小区" : viewModel.mainFilters.subregion;
+          const channelLabel = viewModel.mainFilters.channel === "全部"
+            ? "全部渠道"
+            : formatDimensionText("channel", viewModel.mainFilters.channel);
+          els.modelScopeSummary.textContent = `${mainLabel} · ${regionLabel} · ${subregionLabel} · ${channelLabel}`;
+          els.analysisCapsule.textContent = `${focusedModelLabel} · ${dimensionTextMap[state.dimensionMode]} · ${formatNumber(viewModel.drilledMainRows.length)} 行明细`;
+
+          if (!viewModel.drilledMainRows.length) {
+            els.focusShell.innerHTML = `
+              <div class="model-empty-state">
+                <div class="model-empty-icon" aria-hidden="true">0</div>
+                <div>
+                  <h3>当前筛选范围没有 ${escapeHtml(focusedModelLabel)} 数据</h3>
+                  <p>可能是日期、区域、渠道或上一车型的下钻条件没有对应数据。</p>
+                </div>
+                <button class="btn btn-primary" type="button" data-action="reset-model-scope">查看该车型全量数据</button>
+              </div>
+            `;
+            disposeChart("trend");
+            disposeChart("conversion");
+            disposeChart("primary");
+            disposeChart("secondary");
+            disposeChart("sameChannel");
+            return;
+          }
+
+          const shellCreated = ensureFocusShell();
+          const dimensionOnly = options.dimensionOnly === true && !shellCreated;
           const currentContextTags = buildFunnelContextTags(viewModel.mainFilters);
           const compareContextTags = buildFunnelContextTags(viewModel.compareFilters, {
             ignoreDrill: ["model", "project", "media"],
@@ -8595,15 +8672,18 @@
           const funnelShell = document.getElementById("focusFunnelShell");
           funnelShell.classList.toggle("has-compare", compareVisible);
           funnelShell.innerHTML = `
-            ${buildFunnelColumn("主车型漏斗", mainLabel, viewModel.currentStages, viewModel.compareStages, currentContextTags)}
+            ${buildFunnelColumn(`${focusedModelLabel} 漏斗`, mainLabel, viewModel.currentStages, viewModel.compareStages, currentContextTags)}
             ${compareVisible ? buildFunnelColumn("对比车型漏斗", compareDateLabel, viewModel.compareStages, viewModel.currentStages, compareContextTags) : ""}
             ${compareVisible ? buildDeltaColumn(viewModel.currentStages, viewModel.compareStages) : ""}
           `;
 
-          document.getElementById("trendChartTitle").textContent = `${viewModel.activeStage?.name || "当前指标"}日趋势`;
-          document.getElementById("conversionChartTitle").textContent = `${viewModel.activeStage?.name || "当前指标"}对比`;
-          document.getElementById("primaryChartTitle").textContent = `${getDimensionLabel(state.dimensionMode)}周期对比`;
-          document.getElementById("secondaryChartTitle").textContent = `${getDimensionLabel(viewModel.secondaryDimension)}分布`;
+          const activeStageName = viewModel.activeStage?.name || "当前指标";
+          document.getElementById("trendChartTitle").textContent = `${focusedModelLabel} · ${activeStageName}日趋势`;
+          document.getElementById("conversionChartTitle").textContent = compareVisible
+            ? `${focusedModelLabel} · ${activeStageName}区间对比`
+            : `${focusedModelLabel} · 漏斗阶段量级`;
+          document.getElementById("primaryChartTitle").textContent = `${getDimensionLabel(state.dimensionMode)}${state.dimensionMode === "model" ? "对比" : "拆解"} · ${activeStageName}`;
+          document.getElementById("secondaryChartTitle").textContent = `${getDimensionLabel(viewModel.secondaryDimension)}分布 · ${activeStageName}`;
           document.getElementById("sameChannelChartTitle").textContent = sameChannelTitle;
           document.getElementById("secondaryChartPanel").classList.toggle("is-hidden", hasSameChannelChart);
           document.getElementById("sameChannelChartPanel").classList.toggle("is-hidden", !hasSameChannelChart);
@@ -8703,22 +8783,29 @@
           chart.clear();
           const activeStage = viewModel.activeStage || viewModel.currentStages[0];
           const compareStage = activeStage ? getStageValueById(viewModel.compareStages, activeStage.id) : null;
-          const series = [
-            {
-              name: "当前区间",
-              type: "bar",
-              barMaxWidth: 46,
-              data: activeStage ? [{ value: activeStage.value, stageId: activeStage.id }] : [],
-            },
-          ];
-          if (compareStage) {
-            series.push({
+          const hasCompare = Boolean(compareStage);
+          const categories = hasCompare
+            ? [activeStage.name]
+            : viewModel.currentStages.map((stage) => stage.name);
+          const series = hasCompare
+            ? [{
+                name: "当前区间",
+                type: "bar",
+                barMaxWidth: 46,
+                data: [{ value: activeStage.value, stageId: activeStage.id }],
+              }, {
               name: "对比区间",
               type: "bar",
               barMaxWidth: 46,
               data: [{ value: compareStage.value, stageId: compareStage.id }],
-            });
-          }
+            }]
+            : [{
+                name: "当前区间",
+                type: "bar",
+                barMaxWidth: 54,
+                label: { show: true, position: "top", color: "#4b5563", formatter: ({ value }) => formatNumber(value) },
+                data: viewModel.currentStages.map((stage) => ({ value: stage.value, stageId: stage.id })),
+              }];
           chart.setOption({
             textStyle: { fontFamily: UI_FONT_FAMILY },
             color: ["#111111", "#c3002f", "#ef6689"],
@@ -8729,11 +8816,11 @@
                   .map((item) => `${item.seriesName}：${formatNumber(item.data.value)}`)
                   .join("<br/>"),
             },
-            legend: { top: 0, textStyle: { color: "#666a73" } },
-            grid: { left: 46, right: 16, top: 42, bottom: 40 },
+            legend: { top: 0, show: hasCompare, textStyle: { color: "#666a73" } },
+            grid: { left: 52, right: 16, top: hasCompare ? 42 : 28, bottom: 44 },
             xAxis: {
               type: "category",
-              data: activeStage ? [activeStage.name] : [],
+              data: categories,
               axisLabel: { color: "#666a73" },
             },
             yAxis: {
@@ -9126,11 +9213,17 @@
           ].filter((item, index) => index === 0 || item.value !== "全部");
           els.drillBreadcrumb.innerHTML = breadcrumbItems
             .map(
-              (item) => `
-                <button class="crumb ${item.hot ? "is-hot" : ""}" data-action="clear-drill-part" data-part="${item.key}">
-                  ${item.label}：${item.dimensionKey ? formatDimensionText(item.dimensionKey, item.value) : item.value}
-                </button>
-              `
+              (item) => {
+                const text = `${item.label}：${item.dimensionKey ? formatDimensionText(item.dimensionKey, item.value) : item.value}`;
+                if (item.key === "model" && state.view === "model-drill") {
+                  return `<span class="crumb is-fixed">${text}</span>`;
+                }
+                return `
+                  <button class="crumb ${item.hot ? "is-hot" : ""}" data-action="clear-drill-part" data-part="${item.key}">
+                    ${text}
+                  </button>
+                `;
+              }
             )
             .join("");
         }
@@ -10062,6 +10155,10 @@
               if (element === els.modelSelect) {
                 const nextSelected = getSelectedValues(els.compareModelSelect).filter((model) => model !== els.modelSelect.value);
                 setSelectedValues(els.compareModelSelect, nextSelected.length ? nextSelected : getDefaultCompareModels());
+                if (state.view === "model-drill") {
+                  setRoute("model-drill", { model: els.modelSelect.value || "全部" });
+                  return;
+                }
               }
               renderAll();
             });
@@ -10291,7 +10388,12 @@
           });
 
           els.clearDrillBtn.addEventListener("click", () => {
-            state.drill = createDefaultDrill();
+            const focusedModel = getFocusedModel();
+            const stageId = state.drill.stageId || getCurrentStageId();
+            state.drill = state.view === "model-drill"
+              ? { ...createDefaultDrill(), stageId, model: focusedModel }
+              : createDefaultDrill();
+            state.expandedDetailProjects = {};
             if (state.view === "home") {
               refreshOverviewOnly();
             } else if (state.view === "area") {
@@ -10649,6 +10751,9 @@
             if (action === "go-home") {
               setRoute("home");
             }
+            if (action === "reset-model-scope") {
+              resetModelAnalysisScope();
+            }
             if (action === "open-dealer-focus-picker") {
               openDealerFocusPicker(target.dataset.dealerFocusPickerId, target);
               return;
@@ -10726,6 +10831,7 @@
               }
               if (action === "clear-drill-part") {
                 const part = target.dataset.part;
+                if (part === "model" && state.view === "model-drill") return;
                 const defaultStageId = getEnabledStages()[getEnabledStages().length - 1]?.id || "";
                 if (part === "stage" && state.drill.stageId === defaultStageId) return;
                 if (part === "stage") state.drill.stageId = defaultStageId;
