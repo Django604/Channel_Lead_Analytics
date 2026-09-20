@@ -6764,8 +6764,10 @@
               const estimatedSegmentWidth = largestRegionValue > 0
                 ? value / largestRegionValue * estimatedPlotWidth
                 : estimatedPlotWidth;
-              const estimatedLabelWidth = Math.max(24, [...displayValue].length * 5.5 + 4);
-              const fitsInside = estimatedSegmentWidth >= estimatedLabelWidth;
+              const labelFontSize = Math.max(
+                7,
+                Math.min(9, Math.floor((estimatedSegmentWidth - 2) / Math.max([...displayValue].length * 0.58, 1)))
+              );
               return {
                 value,
                 region: item.name,
@@ -6773,14 +6775,12 @@
                 displayValue,
                 label: {
                   show: value > 0,
-                  position: fitsInside ? "inside" : index % 2 === 0 ? "top" : "bottom",
-                  distance: fitsInside ? 0 : 2,
-                  fontSize: 9,
-                  color: fitsInside
-                    ? "#ffffff"
-                    : AREA_MODEL_STACK_COLORS[modelRow.name] || AREA_MODEL_FALLBACK_COLORS[index % AREA_MODEL_FALLBACK_COLORS.length],
-                  textBorderColor: fitsInside ? "transparent" : "#ffffff",
-                  textBorderWidth: fitsInside ? 0 : 3,
+                  position: "inside",
+                  distance: 0,
+                  fontSize: labelFontSize,
+                  color: "#ffffff",
+                  textBorderColor: "transparent",
+                  textBorderWidth: 0,
                 },
               };
             }),

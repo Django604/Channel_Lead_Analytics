@@ -156,6 +156,7 @@ async function main() {
             displayValues: (series.data || []).map((item) => item?.displayValue || ""),
             labelVisibility: (series.data || []).map((item) => item?.label?.show ?? true),
             labelPositions: (series.data || []).map((item) => item?.label?.position || series.label?.position || ""),
+            labelFontSizes: (series.data || []).map((item) => item?.label?.fontSize || series.label?.fontSize || 0),
           })),
         };
       });
@@ -190,9 +191,16 @@ async function main() {
             if (Number(value) > 0) assert.equal(series.labelVisibility[index], true, `${series.name} 的非零分段应完整显示数字`);
           });
         });
-        const labelPositions = stackedSeries.flatMap((series) => series.labelPositions);
-        assert.ok(labelPositions.includes("inside"), "宽分段数字应显示在柱内");
-        assert.ok(labelPositions.some((position) => position === "top" || position === "bottom"), "窄分段数字应错位显示在柱外");
+        stackedSeries.forEach((series) => {
+          series.data.forEach((value, index) => {
+            if (Number(value) <= 0) return;
+            assert.equal(series.labelPositions[index], "inside", `${series.name} 的非零分段数字应固定显示在柱内`);
+            assert.ok(
+              series.labelFontSizes[index] >= 7 && series.labelFontSizes[index] <= 9,
+              `${series.name} 的柱内数字字号应在 7px 至 9px 之间`
+            );
+          });
+        });
       }
       areaChart.categories.forEach((_, index) => {
         const stackedTotal = stackedSeries.reduce((sum, series) => sum + Number(series.data[index] || 0), 0);
