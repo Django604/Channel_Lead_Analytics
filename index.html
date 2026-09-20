@@ -808,10 +808,10 @@
       .area-summary-note { margin-top: 6px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
       .area-analysis-grid {
         display: grid;
-        grid-template-columns: minmax(340px, 0.78fr) minmax(0, 1.5fr);
+        grid-template-columns: minmax(560px, 1.05fr) minmax(0, 1.45fr);
         gap: var(--space);
       }
-      .area-chart { height: 460px; }
+      .area-chart { height: 500px; }
       .area-table-wrap { max-height: 500px; }
       .area-table { min-width: 1120px; }
       .area-table th:first-child,
@@ -3520,12 +3520,13 @@
         const DEFAULT_EXCLUDED_MODEL_KEYWORDS = ["探陆"];
         const AREA_MODEL_STACK_ORDER = ["NX8", "天籁·鸿蒙座舱", "N7", "N6"];
         const AREA_MODEL_STACK_COLORS = {
-          NX8: "#08a9d1",
-          "天籁·鸿蒙座舱": "#8b5cf6",
-          N7: "#13a474",
-          N6: "#e0a500",
+          NX8: "#405a70",
+          "天籁·鸿蒙座舱": "#876477",
+          N7: "#c3002f",
+          N6: "#b7791f",
+          未标注车型: "#8793a1",
         };
-        const AREA_MODEL_FALLBACK_COLORS = ["#c3002f", "#2563eb", "#0f766e", "#d97706", "#7c3aed", "#475569"];
+        const AREA_MODEL_FALLBACK_COLORS = ["#596675", "#9a6d5d", "#6f7d73", "#9a5261", "#756b84", "#657687"];
         const SURGE_METRIC_ORDER = {
           newLead: 0,
           newStoreVisit: 1,
@@ -3826,6 +3827,13 @@
         function formatNumber(value) {
           const number = Number(value || 0);
           return number.toLocaleString("zh-CN", { maximumFractionDigits: 0 });
+        }
+
+        function formatCompactNumber(value) {
+          const number = Number(value || 0);
+          const absolute = Math.abs(number);
+          if (absolute >= 1000) return `${Number((number / 1000).toFixed(1))}K`;
+          return formatNumber(number);
         }
 
         function formatPercent(value) {
@@ -6729,31 +6737,53 @@
           chart.off("click");
           chart.clear();
           const chartRows = [...regionRows].reverse();
+          const largestRegionValue = Math.max(...chartRows.map((item) => Number(item.summary[metricKey] || 0)), 0);
+          const estimatedPlotWidth = Math.max((els.areaRankingChart.clientWidth || 620) - 190, 320);
           const modelSeries = regionModelRows.map((modelRow, index) => ({
             name: modelRow.name,
             type: "bar",
             stack: "area-models",
-            barMaxWidth: 22,
+            barMaxWidth: 24,
             emphasis: { focus: "series" },
-            labelLayout: { hideOverlap: true },
             label: {
               show: true,
               position: "inside",
-              color: modelRow.name === "N6" ? "#3f3300" : "#ffffff",
-              fontSize: 10,
+              color: "#ffffff",
+              fontSize: 9,
               fontWeight: 700,
-              formatter: (params) => params.value > 0 ? formatNumber(params.value) : "",
+              formatter: (params) => params.data?.displayValue || "",
             },
             itemStyle: {
               color: AREA_MODEL_STACK_COLORS[modelRow.name] || AREA_MODEL_FALLBACK_COLORS[index % AREA_MODEL_FALLBACK_COLORS.length],
               borderColor: "#ffffff",
               borderWidth: 1,
             },
-            data: chartRows.map((item) => ({
-              value: modelRow.values.get(item.name) || 0,
-              region: item.name,
-              model: modelRow.name,
-            })),
+            data: chartRows.map((item) => {
+              const value = modelRow.values.get(item.name) || 0;
+              const displayValue = formatCompactNumber(value);
+              const estimatedSegmentWidth = largestRegionValue > 0
+                ? value / largestRegionValue * estimatedPlotWidth
+                : estimatedPlotWidth;
+              const estimatedLabelWidth = Math.max(24, [...displayValue].length * 5.5 + 4);
+              const fitsInside = estimatedSegmentWidth >= estimatedLabelWidth;
+              return {
+                value,
+                region: item.name,
+                model: modelRow.name,
+                displayValue,
+                label: {
+                  show: value > 0,
+                  position: fitsInside ? "inside" : index % 2 === 0 ? "top" : "bottom",
+                  distance: fitsInside ? 0 : 2,
+                  fontSize: 9,
+                  color: fitsInside
+                    ? "#ffffff"
+                    : AREA_MODEL_STACK_COLORS[modelRow.name] || AREA_MODEL_FALLBACK_COLORS[index % AREA_MODEL_FALLBACK_COLORS.length],
+                  textBorderColor: fitsInside ? "transparent" : "#ffffff",
+                  textBorderWidth: fitsInside ? 0 : 3,
+                },
+              };
+            }),
           }));
           if (!modelSeries.length) {
             modelSeries.push({
@@ -6762,7 +6792,19 @@
               stack: "area-models",
               barMaxWidth: 22,
               itemStyle: { color: "#1f2937" },
-              data: chartRows.map((item) => ({ value: item.summary[metricKey], region: item.name })),
+              label: {
+                show: true,
+                position: "inside",
+                color: "#ffffff",
+                fontSize: 10,
+                fontWeight: 700,
+                formatter: (params) => params.data?.displayValue || "",
+              },
+              data: chartRows.map((item) => ({
+                value: item.summary[metricKey],
+                region: item.name,
+                displayValue: formatCompactNumber(item.summary[metricKey]),
+              })),
             });
           }
           chart.setOption({
@@ -6798,17 +6840,14 @@
               textStyle: { color: "#666a73", fontSize: 11 },
               itemWidth: 12,
               itemHeight: 8,
+              itemGap: 12,
             },
-            grid: { left: 92, right: 70, top: 8, bottom: 48 },
+            grid: { left: 92, right: 78, top: 18, bottom: 48 },
             xAxis: {
               type: "value",
               axisLabel: {
                 color: "#666a73",
-                formatter: (value) => value >= 10000
-                  ? `${Number((value / 10000).toFixed(1))}万`
-                  : value >= 1000
-                    ? `${Number((value / 1000).toFixed(1))}千`
-                    : value,
+                formatter: (value) => formatCompactNumber(value),
               },
               splitLine: { lineStyle: { color: "#eceef2" } },
             },
@@ -6836,11 +6875,16 @@
                   distance: 6,
                   color: "#4a5568",
                   fontSize: 11,
-                  formatter: (params) => formatNumber(params.value[0]),
+                  fontWeight: 600,
+                  backgroundColor: "rgba(255,255,255,0.88)",
+                  borderRadius: 2,
+                  padding: [2, 4],
+                  formatter: (params) => params.data?.displayValue || "",
                 },
                 data: chartRows.map((item) => ({
                   value: [item.summary[metricKey], item.name],
                   region: item.name,
+                  displayValue: formatCompactNumber(item.summary[metricKey]),
                 })),
               },
             ],
@@ -8019,7 +8063,7 @@
                 axisLabel: {
                   formatter: (value) => yMetrics.every(isChartStudioPercentMetric)
                     ? `${Number(value).toFixed(1)}%`
-                    : value >= 10000 ? `${Number((value / 10000).toFixed(1))}万` : value,
+                    : formatCompactNumber(value),
                 },
                 splitLine: { lineStyle: { color: "#edf2f7" } },
               },
@@ -8057,7 +8101,7 @@
               position: secondary ? horizontal ? "top" : "right" : undefined,
               axisLabel: {
                 color: "#666a73",
-                formatter: (value) => percentAxis ? `${Number(value).toFixed(1)}%` : value >= 10000 ? `${Number((value / 10000).toFixed(1))}万` : value,
+                formatter: (value) => percentAxis ? `${Number(value).toFixed(1)}%` : formatCompactNumber(value),
               },
               splitLine: secondary ? { show: false } : { lineStyle: { color: "#edf2f7" } },
             };

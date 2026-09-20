@@ -140,15 +140,22 @@ async function main() {
       const areaChart = await page.evaluate(() => {
         const chart = window.echarts.getInstanceByDom(document.querySelector("#areaRankingChart"));
         const option = chart.getOption();
+        const panels = [...document.querySelectorAll("#areaSection .area-analysis-grid > .panel")];
         return {
           title: document.querySelector("#areaChartTitle")?.textContent || "",
           note: document.querySelector("#areaSection .panel-note")?.textContent || "",
+          rankingPanelWidth: panels[0]?.getBoundingClientRect().width || 0,
+          detailPanelWidth: panels[1]?.getBoundingClientRect().width || 0,
           categories: option.yAxis?.[0]?.data || [],
           series: (option.series || []).map((series) => ({
             name: series.name,
             type: series.type,
             stack: series.stack,
+            color: series.itemStyle?.color || "",
             data: (series.data || []).map((item) => item?.value ?? item),
+            displayValues: (series.data || []).map((item) => item?.displayValue || ""),
+            labelVisibility: (series.data || []).map((item) => item?.label?.show ?? true),
+            labelPositions: (series.data || []).map((item) => item?.label?.position || series.label?.position || ""),
           })),
         };
       });
@@ -156,11 +163,37 @@ async function main() {
       const totalSeries = areaChart.series.find((series) => series.type === "scatter" && series.name === "合计");
       assert.match(areaChart.title, /车型堆积/);
       assert.match(areaChart.note, /柱形按车型堆积/);
+      assert.ok(areaChart.rankingPanelWidth >= 550, `大区排名面板应向右扩展，当前宽度 ${areaChart.rankingPanelWidth}px`);
+      assert.ok(areaChart.rankingPanelWidth / areaChart.detailPanelWidth >= 0.68, "大区排名与小区明细的宽度比例应更均衡");
       assert.ok(areaChart.categories.length > 1, "区域排名应包含多个大区");
       assert.ok(stackedSeries.length > 1, "区域排名应按多个车型生成堆积系列");
       assert.ok(stackedSeries.every((series) => series.stack === "area-models"), "车型系列应使用同一堆积组");
       assert.ok(stackedSeries.every((series) => !series.name.includes("探陆")), "区域堆积图不应包含探陆车型");
       assert.ok(totalSeries, "区域堆积图应保留合计标签系列");
+      const expectedColors = {
+        NX8: "#405a70",
+        "天籁·鸿蒙座舱": "#876477",
+        N7: "#c3002f",
+        N6: "#b7791f",
+        未标注车型: "#8793a1",
+      };
+      stackedSeries.forEach((series) => {
+        if (expectedColors[series.name]) assert.equal(series.color, expectedColors[series.name], `${series.name} 应使用页面综合色调`);
+      });
+      assert.ok(
+        totalSeries.displayValues.every((value) => !value || /^-?[\d.]+K?$/.test(value)),
+        "区域合计应使用 K 单位的紧凑数字格式"
+      );
+      if (uploadFiles.length) {
+        stackedSeries.forEach((series) => {
+          series.data.forEach((value, index) => {
+            if (Number(value) > 0) assert.equal(series.labelVisibility[index], true, `${series.name} 的非零分段应完整显示数字`);
+          });
+        });
+        const labelPositions = stackedSeries.flatMap((series) => series.labelPositions);
+        assert.ok(labelPositions.includes("inside"), "宽分段数字应显示在柱内");
+        assert.ok(labelPositions.some((position) => position === "top" || position === "bottom"), "窄分段数字应错位显示在柱外");
+      }
       areaChart.categories.forEach((_, index) => {
         const stackedTotal = stackedSeries.reduce((sum, series) => sum + Number(series.data[index] || 0), 0);
         const displayedTotal = Number(totalSeries.data[index]?.[0] || 0);
