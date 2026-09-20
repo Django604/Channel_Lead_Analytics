@@ -68,6 +68,18 @@ async function main() {
       await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
     }
 
+    const visibleModels = await page.locator("#modelSelect option").evaluateAll((options) =>
+      options.map((option) => option.value).filter((value) => value && value !== "全部")
+    );
+    assert.ok(visibleModels.length > 1, "默认统计口径应保留多个 NEV 车型");
+    assert.ok(visibleModels.every((model) => !model.includes("探陆")), "探陆相关车型不应出现在固定统计口径中");
+    const sourceNote = await page.locator("#sourceNote").innerText();
+    assert.match(sourceNote, /固定口径：排除探陆相关车型（[\d,]+ 行）/);
+    if (uploadFiles.length) {
+      const excludedRowCount = Number(sourceNote.match(/排除探陆相关车型（([\d,]+) 行）/)?.[1].replace(/,/g, "") || 0);
+      assert.ok(excludedRowCount > 0, "实测文件应命中并排除探陆相关数据");
+    }
+
     assert.equal(await page.locator("#modelSelect").inputValue(), "N7");
     assert.match(await page.locator("#drillViewTitle").innerText(), /^N7 车型分析$/);
     assert.match(await page.locator("#uiSidebarBrandName").innerText(), /^N7 车型分析$/);
@@ -86,10 +98,7 @@ async function main() {
     assert.match(await page.locator("#analysisCapsule").innerText(), /^N6 ·/);
     assert.match(await page.locator("#drillBreadcrumb .crumb.is-fixed").innerText(), /车型：N6/);
     if (uploadFiles.length) {
-      const models = await page.locator("#modelSelect option").evaluateAll((options) =>
-        options.map((option) => option.value).filter((value) => value && value !== "全部")
-      );
-      for (const model of models) {
+      for (const model of visibleModels) {
         await page.locator("#modelSelect").selectOption(model);
         await page.waitForFunction(
           (expectedModel) =>
@@ -99,10 +108,67 @@ async function main() {
         );
         assert.ok(await readMetricValue(page) > 0, `${model} 指标应大于 0`);
       }
-      console.log(`上传数据车型验证通过：${models.join("、")}`);
+      console.log(`上传数据车型验证通过：${visibleModels.join("、")}`);
+    }
+
+    await page.locator("#modelSelect").selectOption("全部");
+    await page.waitForFunction(() => decodeURIComponent(window.location.hash) === "#model-drill?model=全部");
+    await page.evaluate(() => { window.location.hash = "#area"; });
+    await page.waitForURL(/#area$/);
+    try {
+      await page.waitForFunction(() =>
+        document.querySelector("#computeStatusText")?.textContent.includes("计算完成") &&
+        (
+          window.echarts?.getInstanceByDom(document.querySelector("#areaRankingChart")) ||
+          document.querySelector("#areaRankingChart")?.textContent.includes("当前数据未提供大区维度")
+        )
+      );
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        computeStatus: document.querySelector("#computeStatusText")?.textContent || "",
+        areaContent: document.querySelector("#areaRankingChart")?.textContent || "",
+        areaHidden: document.querySelector("#areaSection")?.classList.contains("is-hidden"),
+      }));
+      throw new Error(`${error.message}\n区域图诊断：${JSON.stringify(diagnostics)}\n页面错误：${pageErrors.join(" | ")}`);
+    }
+    const hasAreaChart = await page.evaluate(() => Boolean(
+      window.echarts.getInstanceByDom(document.querySelector("#areaRankingChart"))
+    ));
+    if (!hasAreaChart) {
+      assert.equal(uploadFiles.length, 0, "实测文件应生成区域车型堆积图");
+    } else {
+      const areaChart = await page.evaluate(() => {
+        const chart = window.echarts.getInstanceByDom(document.querySelector("#areaRankingChart"));
+        const option = chart.getOption();
+        return {
+          title: document.querySelector("#areaChartTitle")?.textContent || "",
+          note: document.querySelector("#areaSection .panel-note")?.textContent || "",
+          categories: option.yAxis?.[0]?.data || [],
+          series: (option.series || []).map((series) => ({
+            name: series.name,
+            type: series.type,
+            stack: series.stack,
+            data: (series.data || []).map((item) => item?.value ?? item),
+          })),
+        };
+      });
+      const stackedSeries = areaChart.series.filter((series) => series.type === "bar");
+      const totalSeries = areaChart.series.find((series) => series.type === "scatter" && series.name === "合计");
+      assert.match(areaChart.title, /车型堆积/);
+      assert.match(areaChart.note, /柱形按车型堆积/);
+      assert.ok(areaChart.categories.length > 1, "区域排名应包含多个大区");
+      assert.ok(stackedSeries.length > 1, "区域排名应按多个车型生成堆积系列");
+      assert.ok(stackedSeries.every((series) => series.stack === "area-models"), "车型系列应使用同一堆积组");
+      assert.ok(stackedSeries.every((series) => !series.name.includes("探陆")), "区域堆积图不应包含探陆车型");
+      assert.ok(totalSeries, "区域堆积图应保留合计标签系列");
+      areaChart.categories.forEach((_, index) => {
+        const stackedTotal = stackedSeries.reduce((sum, series) => sum + Number(series.data[index] || 0), 0);
+        const displayedTotal = Number(totalSeries.data[index]?.[0] || 0);
+        assert.equal(stackedTotal, displayedTotal, `第 ${index + 1} 个大区的车型堆积合计应一致`);
+      });
     }
     assert.deepEqual(pageErrors, []);
-    console.log("车型切换验证通过：N7 → N6，路由、标题、筛选与指标保持一致。");
+    console.log("车型切换、探陆固定排除与区域车型堆积验证通过。");
   } finally {
     await browser?.close();
     await new Promise((resolve) => server.close(resolve));

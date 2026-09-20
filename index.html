@@ -3073,7 +3073,7 @@
           <div class="panel">
             <div class="panel-head">
               <h3 id="areaChartTitle">大区排名</h3>
-              <p class="panel-note">按选中指标降序排列，点击柱形后联动查看该大区的小区和渠道明细。</p>
+              <p class="panel-note">按选中指标降序排列，柱形按车型堆积；点击任一车型分段后联动查看该大区的小区和渠道明细。</p>
             </div>
             <div class="panel-body"><div class="area-chart" id="areaRankingChart"></div></div>
           </div>
@@ -3517,6 +3517,15 @@
         const SURGE_METRIC_KEYS = ["newLead", "newStoreVisit", "validTestDrive", "lockOrder"];
         const SURGE_DRILL_LEVELS = ["channel", "project", "media"];
         const DEFAULT_OVERVIEW_MODELS = ["N7", "N6", "NX8", "天籁·鸿蒙座舱"];
+        const DEFAULT_EXCLUDED_MODEL_KEYWORDS = ["探陆"];
+        const AREA_MODEL_STACK_ORDER = ["NX8", "天籁·鸿蒙座舱", "N7", "N6"];
+        const AREA_MODEL_STACK_COLORS = {
+          NX8: "#08a9d1",
+          "天籁·鸿蒙座舱": "#8b5cf6",
+          N7: "#13a474",
+          N6: "#e0a500",
+        };
+        const AREA_MODEL_FALLBACK_COLORS = ["#c3002f", "#2563eb", "#0f766e", "#d97706", "#7c3aed", "#475569"];
         const SURGE_METRIC_ORDER = {
           newLead: 0,
           newStoreVisit: 1,
@@ -4212,6 +4221,53 @@
           return result;
         }
 
+        function isDefaultExcludedModel(model) {
+          const modelName = String(model || "").trim();
+          return DEFAULT_EXCLUDED_MODEL_KEYWORDS.some((keyword) => modelName.includes(keyword));
+        }
+
+        function applyDefaultDatasetFilters(dataset) {
+          const modelColumnIndex = dataset.schemaIndex.modelId;
+          const sourceRows = dataset.rows || [];
+          const sourceRowCount = Number(dataset.sourceRowCount ?? dataset.rowCount ?? sourceRows.length);
+          if (modelColumnIndex == null) {
+            return { ...dataset, sourceRowCount, defaultExcludedRowCount: 0, defaultExcludedModels: [] };
+          }
+
+          const sourceModels = dataset.models || ["(空)"];
+          const models = [];
+          const modelIdMap = new Map();
+          sourceModels.forEach((model, sourceModelId) => {
+            if (isDefaultExcludedModel(model)) return;
+            modelIdMap.set(sourceModelId, models.length);
+            models.push(model);
+          });
+
+          const excludedModels = new Set();
+          const rows = [];
+          sourceRows.forEach((row) => {
+            const sourceModelId = row[modelColumnIndex];
+            const model = sourceModels[sourceModelId] || "(空)";
+            if (isDefaultExcludedModel(model)) {
+              excludedModels.add(model);
+              return;
+            }
+            const nextRow = [...row];
+            nextRow[modelColumnIndex] = modelIdMap.get(sourceModelId) ?? 0;
+            rows.push(nextRow);
+          });
+
+          return {
+            ...dataset,
+            rows,
+            models,
+            rowCount: rows.length,
+            sourceRowCount,
+            defaultExcludedRowCount: sourceRows.length - rows.length,
+            defaultExcludedModels: [...excludedModels],
+          };
+        }
+
         function decodeDataset(raw, sourceLabel) {
           const schemaIndex = {};
           raw.schema.forEach((name, idx) => {
@@ -4226,20 +4282,18 @@
           const dimensionValues = Object.fromEntries(
             DATASET_DIMENSION_FIELDS.map((field) => [field.valuesKey, raw[field.valuesKey] || ["(空)"]])
           );
-          return {
-            raw: {
-              ...raw,
-              ...dimensionValues,
-              availableDimensions,
-              completeDimensions,
-              missingDimensions: raw.missingDimensions || DATASET_DIMENSION_FIELDS
-                .filter((field) => !completeDimensions.includes(field.key))
-                .map((field) => field.key),
-              costs: raw.costs || fallbackCosts,
-              schemaIndex,
-            },
-            sourceLabel,
+          const normalizedDataset = {
+            ...raw,
+            ...dimensionValues,
+            availableDimensions,
+            completeDimensions,
+            missingDimensions: raw.missingDimensions || DATASET_DIMENSION_FIELDS
+              .filter((field) => !completeDimensions.includes(field.key))
+              .map((field) => field.key),
+            costs: raw.costs || fallbackCosts,
+            schemaIndex,
           };
+          return { raw: applyDefaultDatasetFilters(normalizedDataset), sourceLabel };
         }
 
         function formatAnalysisRange(startDate, endDate) {
@@ -6427,8 +6481,8 @@
           els.metaRowCount.textContent = `${formatNumber(state.dataset.rowCount)} 行`;
           els.metaChannelCount.textContent = `${getVisibleDimensionValues(state.dataset.channels).length} 个`;
           els.metaModelCount.textContent = `${getVisibleDimensionValues(state.dataset.models).length} 个`;
-          els.sourceNote.textContent = state.dataset.rowCount
-            ? `${state.dataset.sourceFile} · ${state.dataset.generatedAt.replace("T", " ").slice(0, 19)}`
+          els.sourceNote.textContent = state.dataset.sourceRowCount
+            ? `${state.dataset.sourceFile} · ${state.dataset.generatedAt.replace("T", " ").slice(0, 19)} · 固定口径：排除探陆相关车型（${formatNumber(state.dataset.defaultExcludedRowCount || 0)} 行）`
             : "尚未上传数据";
           els.overviewCapsule.textContent =
             !hasUsableDateDimension()
@@ -6546,6 +6600,39 @@
             .sort((left, right) => right.summary[metricKey] - left.summary[metricKey]);
         }
 
+        function summarizeAreaModels(rows, dimensionKey, metricKey) {
+          const modelBuckets = new Map();
+          rows.forEach((row) => {
+            const dimensionName = getDimensionValue(row, dimensionKey);
+            const rawModelName = getDimensionValue(row, "model");
+            if (isEmptyDimensionValue(dimensionName)) return;
+            const modelName = isEmptyDimensionValue(rawModelName) ? "未标注车型" : rawModelName;
+            if (!modelBuckets.has(modelName)) modelBuckets.set(modelName, new Map());
+            const dimensionBuckets = modelBuckets.get(modelName);
+            dimensionBuckets.set(
+              dimensionName,
+              (dimensionBuckets.get(dimensionName) || 0) + Number(row[state.dataset.schemaIndex[metricKey]] || 0)
+            );
+          });
+          return [...modelBuckets.entries()]
+            .map(([name, values]) => ({
+              name,
+              values,
+              total: [...values.values()].reduce((sum, value) => sum + value, 0),
+            }))
+            .filter((item) => item.total > 0)
+            .sort((left, right) => {
+              const leftOrder = AREA_MODEL_STACK_ORDER.indexOf(left.name);
+              const rightOrder = AREA_MODEL_STACK_ORDER.indexOf(right.name);
+              if (leftOrder >= 0 || rightOrder >= 0) {
+                if (leftOrder < 0) return 1;
+                if (rightOrder < 0) return -1;
+                return leftOrder - rightOrder;
+              }
+              return right.total - left.total || compareNaturalDimensionText(left.name, right.name);
+            });
+        }
+
         function computeAreaViewModel() {
           const metricKey = AREA_METRIC_KEYS.includes(els.areaMetricSelect.value) ? els.areaMetricSelect.value : AREA_METRIC_KEYS[0];
           const filters = getMainFilters();
@@ -6556,6 +6643,9 @@
           });
           const regionRows = hasDatasetDimension("region")
             ? summarizeAreaDimension(areaBaseRows, "region", metricKey)
+            : [];
+          const regionModelRows = hasDatasetDimension("region") && hasDatasetDimension("model")
+            ? summarizeAreaModels(areaBaseRows, "region", metricKey)
             : [];
           const subregionBaseRows = filters.region !== "全部" && hasDatasetDimension("region")
             ? filterRowsByDimensionValue(areaBaseRows, "region", filters.region)
@@ -6574,6 +6664,7 @@
             metricKey,
             filters,
             regionRows,
+            regionModelRows,
             subregionRows,
             channelRows,
             activeSummary: computeSummaryFromRows(filterRowsByFilters(state.dataset.rows, filters)),
@@ -6625,9 +6716,9 @@
         }
 
         function renderAreaRankingChart(viewModel) {
-          const { filters, metricKey, regionRows } = viewModel;
+          const { filters, metricKey, regionRows, regionModelRows } = viewModel;
           const metricLabel = METRICS[metricKey]?.label || metricKey;
-          els.areaChartTitle.textContent = `大区排名 · ${metricLabel}`;
+          els.areaChartTitle.textContent = `大区排名 · ${metricLabel}（车型堆积）`;
           if (!hasDatasetDimension("region") || !regionRows.length) {
             disposeChart("areaRanking");
             els.areaRankingChart.innerHTML = '<div class="empty-focus">当前数据未提供大区维度</div>';
@@ -6638,6 +6729,42 @@
           chart.off("click");
           chart.clear();
           const chartRows = [...regionRows].reverse();
+          const modelSeries = regionModelRows.map((modelRow, index) => ({
+            name: modelRow.name,
+            type: "bar",
+            stack: "area-models",
+            barMaxWidth: 22,
+            emphasis: { focus: "series" },
+            labelLayout: { hideOverlap: true },
+            label: {
+              show: true,
+              position: "inside",
+              color: modelRow.name === "N6" ? "#3f3300" : "#ffffff",
+              fontSize: 10,
+              fontWeight: 700,
+              formatter: (params) => params.value > 0 ? formatNumber(params.value) : "",
+            },
+            itemStyle: {
+              color: AREA_MODEL_STACK_COLORS[modelRow.name] || AREA_MODEL_FALLBACK_COLORS[index % AREA_MODEL_FALLBACK_COLORS.length],
+              borderColor: "#ffffff",
+              borderWidth: 1,
+            },
+            data: chartRows.map((item) => ({
+              value: modelRow.values.get(item.name) || 0,
+              region: item.name,
+              model: modelRow.name,
+            })),
+          }));
+          if (!modelSeries.length) {
+            modelSeries.push({
+              name: metricLabel,
+              type: "bar",
+              stack: "area-models",
+              barMaxWidth: 22,
+              itemStyle: { color: "#1f2937" },
+              data: chartRows.map((item) => ({ value: item.summary[metricKey], region: item.name })),
+            });
+          }
           chart.setOption({
             textStyle: { fontFamily: UI_FONT_FAMILY },
             tooltip: {
@@ -6649,13 +6776,30 @@
                 if (!row) return region;
                 return [
                   escapeHtml(region),
+                  ...(regionModelRows.length
+                    ? params
+                      .filter((item) => item.seriesType === "bar" && Number(item.value) > 0)
+                      .map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatNumber(item.value)}`)
+                    : []),
+                  `<strong>合计：${formatNumber(row.summary[metricKey])}</strong>`,
                   ...AREA_METRIC_KEYS.map((key) => `${escapeHtml(METRICS[key].label)}：${formatNumber(row.summary[key])}`),
                   `有效率：${formatPercent(row.effectiveLeadRate)}`,
                   `线索锁单率：${formatPercent(row.leadToLockRate)}`,
                 ].join("<br/>");
               },
             },
-            grid: { left: 92, right: 58, top: 8, bottom: 24 },
+            legend: {
+              show: regionModelRows.length > 0,
+              type: "scroll",
+              bottom: 0,
+              left: 8,
+              right: 8,
+              data: regionModelRows.map((item) => item.name),
+              textStyle: { color: "#666a73", fontSize: 11 },
+              itemWidth: 12,
+              itemHeight: 8,
+            },
+            grid: { left: 92, right: 70, top: 8, bottom: 48 },
             xAxis: {
               type: "value",
               axisLabel: {
@@ -6671,22 +6815,38 @@
             yAxis: {
               type: "category",
               data: chartRows.map((item) => item.name),
-              axisLabel: { color: "#666a73" },
+              axisLabel: {
+                color: "#666a73",
+                formatter: (value) => filters.region === value ? `{selected|${value}}` : value,
+                rich: { selected: { color: "#c3002f", fontWeight: 700 } },
+              },
               axisTick: { show: false },
             },
-            series: [{
-              name: metricLabel,
-              type: "bar",
-              barMaxWidth: 22,
-              label: { show: true, position: "right", color: "#4a5568", formatter: (params) => formatNumber(params.value) },
-              data: chartRows.map((item) => ({
-                value: item.summary[metricKey],
-                region: item.name,
-                itemStyle: { color: filters.region === item.name ? "#c3002f" : "#1f2937" },
-              })),
-            }],
+            series: [
+              ...modelSeries,
+              {
+                name: "合计",
+                type: "scatter",
+                silent: true,
+                symbolSize: 1,
+                tooltip: { show: false },
+                label: {
+                  show: true,
+                  position: "right",
+                  distance: 6,
+                  color: "#4a5568",
+                  fontSize: 11,
+                  formatter: (params) => formatNumber(params.value[0]),
+                },
+                data: chartRows.map((item) => ({
+                  value: [item.summary[metricKey], item.name],
+                  region: item.name,
+                })),
+              },
+            ],
           });
           chart.on("click", (params) => {
+            if (params.seriesType !== "bar") return;
             const region = params.data?.region || "全部";
             setAreaFilters(filters.region === region ? "全部" : region, "全部");
             state.alertDrill = createDefaultAlertDrill();
@@ -9887,17 +10047,18 @@
               .filter((field) => dataset.missingDimensions.includes(field.key))
               .map((field) => field.label);
             const mergeNote = files.length > 1
-              ? `已合并 ${files.length} 份同级数据，共 ${formatNumber(dataset.rowCount)} 行`
-              : `已加载 ${formatNumber(dataset.rowCount)} 行`;
+              ? `已合并 ${files.length} 份同级数据，源数据 ${formatNumber(dataset.rowCount)} 行，参与统计 ${formatNumber(state.dataset.rowCount)} 行`
+              : `已加载源数据 ${formatNumber(dataset.rowCount)} 行，参与统计 ${formatNumber(state.dataset.rowCount)} 行`;
+            const defaultFilterNote = `；固定排除探陆相关车型 ${formatNumber(state.dataset.defaultExcludedRowCount || 0)} 行`;
             const cleaningNote = dataset.channelCleaningApplied
               ? `；已执行渠道清洗，调整 ${formatNumber(dataset.cleanedChannelRows)} 行`
               : "；未同时检测到渠道、媒体和大项目名，未执行渠道清洗";
             const missingNote = missingLabels.length ? `；缺少维度：${missingLabels.join("、")}` : "";
             state.uploadStatus = "success";
-            state.uploadSummary = `${mergeNote}${cleaningNote}${missingNote}${cacheWarning}`;
+            state.uploadSummary = `${mergeNote}${cleaningNote}${defaultFilterNote}${missingNote}${cacheWarning}`;
             state.uploadError = "";
             renderUploadModal();
-            showToast(`${mergeNote}${cleaningNote}`, missingLabels.length ? "warning" : "success", 6000);
+            showToast(`${mergeNote}${defaultFilterNote}`, missingLabels.length ? "warning" : "success", 6000);
           } catch (error) {
             setComputeState("idle");
             if (state.dataset) renderAll();
