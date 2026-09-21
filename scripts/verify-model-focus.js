@@ -38,6 +38,41 @@ async function readMetricValue(page) {
   return Number(text.replace(/,/g, ""));
 }
 
+async function verifyIntroGuide(page) {
+  const steps = [
+    { title: "数营总览", target: '[data-ui-context="home"] [data-ui-route="home"]' },
+    { title: "区域分析", target: '[data-ui-context="home"] [data-ui-route="area"]' },
+    { title: "专店聚焦", target: '[data-ui-context="home"] [data-ui-route="dealer-focus"]' },
+    { title: "图表生成", target: '[data-ui-context="home"] [data-ui-route="chart-studio"]' },
+    { title: "车型分析", target: '[data-ui-context="home"] [data-ui-route="model"]' },
+    { title: "上传你的第一份数据，开始使用吧！", target: "#uploadTrigger" },
+  ];
+  await page.locator("#introGuide:not(.is-hidden)").waitFor({ timeout: 120000 });
+  for (let index = 0; index < steps.length; index += 1) {
+    const step = steps[index];
+    await page.waitForTimeout(260);
+    assert.equal(await page.locator("#introGuideKicker").innerText(), `${index + 1} / ${steps.length}`);
+    assert.equal(await page.locator("#introGuideTitle").innerText(), step.title);
+    const [spot, target] = await Promise.all([
+      page.locator("#introGuideSpot").boundingBox(),
+      page.locator(step.target).boundingBox(),
+    ]);
+    assert.ok(spot && target, `${step.title} 应存在可见引导目标`);
+    assert.ok(spot.x <= target.x && spot.y <= target.y, `${step.title} 的高亮框应覆盖目标左上角`);
+    assert.ok(
+      spot.x + spot.width >= target.x + target.width && spot.y + spot.height >= target.y + target.height,
+      `${step.title} 的高亮框应完整覆盖目标`
+    );
+    if (index < steps.length - 1) await page.locator("#introGuideNext").click();
+  }
+  assert.equal(await page.locator("#introGuideNext").innerText(), "上传 Excel");
+  await page.locator("#introGuideNext").click();
+  await page.locator("#uploadModal.is-open").waitFor();
+  assert.ok(await page.locator("#introGuide").evaluate((element) => element.classList.contains("is-hidden")));
+  await page.locator("#uploadModalCancel").click();
+  console.log("侧边栏引导与最终上传入口验证通过。");
+}
+
 async function main() {
   const uploadFiles = process.argv.slice(2).map((filePath) => path.resolve(filePath));
   uploadFiles.forEach((filePath) => assert.ok(fs.existsSync(filePath), `文件不存在：${filePath}`));
@@ -51,16 +86,20 @@ async function main() {
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
 
-    await page.goto(`http://127.0.0.1:${port}/index.html#model-drill?model=N7`, {
+    await page.goto(`http://127.0.0.1:${port}/index.html#home`, {
       waitUntil: "load",
       timeout: 120000,
     });
     await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
+    await verifyIntroGuide(page);
+    await page.evaluate(() => { window.location.hash = "#model-drill?model=N7"; });
+    await page.waitForURL(/#model-drill\?model=N7$/);
+    await page.waitForFunction(() =>
+      document.querySelector("#computeStatusText")?.textContent.includes("计算完成") &&
+      document.querySelector("#drillViewTitle")?.textContent.trim() === "N7 车型分析"
+    );
 
     if (uploadFiles.length) {
-      if (await page.locator("#introGuide:not(.is-hidden)").count()) {
-        await page.locator("#introGuideSkip").click();
-      }
       await page.locator("#uploadTrigger").click();
       await page.locator("#fileInput").setInputFiles(uploadFiles);
       await page.locator("#uploadStartBtn").click();

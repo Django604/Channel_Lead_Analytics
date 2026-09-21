@@ -2541,29 +2541,29 @@
         position: fixed;
         inset: 0;
         z-index: 80;
-        background: rgba(13, 17, 23, 0.32);
-        backdrop-filter: blur(3px);
+        background: transparent;
       }
       .intro-guide.is-hidden { display: none; }
       .intro-guide-spot {
         position: fixed;
         border: 2px solid var(--brand);
-        border-radius: var(--radius);
-        box-shadow: 0 0 0 9999px rgba(13, 17, 23, 0.32), 0 12px 34px rgba(195, 0, 47, 0.16);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 0 9999px rgba(13, 17, 23, 0.48), 0 12px 34px rgba(195, 0, 47, 0.2);
         pointer-events: none;
         transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
       }
       .intro-guide-skip-hint { position: fixed; right: 22px; bottom: 18px; color: rgba(255,255,255,0.85); font-size: 12px; pointer-events: none; }
       .intro-guide-card {
         position: fixed;
-        width: min(380px, calc(100vw - 32px));
+        width: min(400px, calc(100vw - 32px));
         border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        background: rgba(255, 255, 255, 0.98);
-        box-shadow: 0 28px 80px rgba(13, 17, 23, 0.22);
-        padding: var(--space-md);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.99);
+        box-shadow: 0 28px 80px rgba(13, 17, 23, 0.25), 0 8px 28px rgba(195, 0, 47, 0.08);
+        padding: 18px;
         display: grid;
-        gap: var(--space);
+        gap: 14px;
         transition: top 0.2s ease, left 0.2s ease;
       }
       .intro-guide-card::before { content: ""; position: absolute; width: 14px; height: 14px; background: rgba(255,255,255,0.98); border: inherit; transform: rotate(45deg); }
@@ -2571,11 +2571,12 @@
       .intro-guide-card[data-placement="top"]::before { bottom: -8px; left: var(--arrow-x, 28px); border-left: 0; border-top: 0; }
       .intro-guide-card[data-placement="right"]::before { left: -8px; top: var(--arrow-y, 28px); border-right: 0; border-top: 0; }
       .intro-guide-card[data-placement="left"]::before { right: -8px; top: var(--arrow-y, 28px); border-left: 0; border-bottom: 0; }
-      .intro-guide-kicker { color: var(--brand); font-size: 12px; font-weight: 800; }
-      .intro-guide-title { margin: 0; font-size: 18px; line-height: 1.3; font-weight: 800; color: var(--text); }
-      .intro-guide-text { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
-      .intro-guide-progress { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+      .intro-guide-kicker { margin-bottom: 2px; color: var(--brand); font-size: 12px; font-weight: 900; letter-spacing: 0.03em; }
+      .intro-guide-title { margin: 0; font-size: 18px; line-height: 1.4; font-weight: 900; color: var(--text); }
+      .intro-guide-text { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.75; }
+      .intro-guide-progress { display: grid; grid-template-columns: repeat(var(--guide-step-count, 6), minmax(0, 1fr)); gap: 6px; }
       .intro-guide-dot { height: 4px; border-radius: var(--radius-full); background: var(--border); }
+      .intro-guide-dot.is-complete { background: rgba(195, 0, 47, 0.28); }
       .intro-guide-dot.is-active { background: var(--brand); }
       .intro-guide-actions { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
       .intro-guide-actions-right { display: flex; gap: 10px; align-items: center; }
@@ -3325,7 +3326,7 @@
       <div class="intro-guide-skip-hint">点击空白处跳过</div>
       <div class="intro-guide-card" id="introGuideCard" data-placement="bottom">
         <div>
-          <div class="intro-guide-kicker" id="introGuideKicker">1 / 5</div>
+          <div class="intro-guide-kicker" id="introGuideKicker">1 / 6</div>
           <h2 class="intro-guide-title" id="introGuideTitle">页面引导</h2>
         </div>
         <p class="intro-guide-text" id="introGuideText"></p>
@@ -3541,34 +3542,41 @@
 
         const INTRO_GUIDE_STEPS = [
           {
-            title: "筛选主分析区间",
-            text: "顶部用于选择日期、大区、小区、渠道和车型。大区与小区按层级联动，先用这里确定主分析口径。",
-            target: "#startDate",
-            placement: "bottom",
+            title: "数营总览",
+            text: "集中查看核心经营指标、车型漏斗和异常预警，并通过日期、大区、小区、渠道与车型筛选快速确定分析口径。",
+            target: '[data-ui-context="home"] [data-ui-route="home"]',
+            placement: "right",
           },
           {
-            title: "查看车型漏斗",
-            text: "数营漏斗展示各车型从新增线索到锁单的漏斗表现。左侧是统一阶段，卡片内展示每个车型的数值和转化率。",
-            target: ".overview-card",
-            placement: "top",
+            title: "区域分析",
+            text: "按大区、小区和渠道逐层下钻，查看区域排名、车型结构与各项线索转化表现。",
+            target: '[data-ui-context="home"] [data-ui-route="area"]',
+            placement: "right",
           },
           {
-            title: "关注突增突降",
-            text: "异常预警按主分析日期生成甘特轨道，红色代表上升，绿色代表下降，点击异常点可继续下钻。",
-            target: ".alert-calendar-card",
-            placement: "top",
+            title: "专店聚焦",
+            text: "对比单店与全国、区域店均表现，也可选择多个专营店或区域聚合查看渠道数据。",
+            target: '[data-ui-context="home"] [data-ui-route="dealer-focus"]',
+            placement: "right",
           },
           {
-            title: "下钻与车型对比",
-            text: "点击车型卡片进入下钻页，可按渠道、大项目、媒体拆解；加入对比后可选择多个车型做同维度漏斗对比。",
-            target: "#toggleCompareBtn",
-            placement: "bottom",
+            title: "图表生成",
+            text: "拖动维度和指标设置 X、Y 轴，自由筛选数据、选择图表类型，并在多个画布中完成自定义分析。",
+            target: '[data-ui-context="home"] [data-ui-route="chart-studio"]',
+            placement: "right",
           },
           {
-            title: "上传与导出",
-            text: "上传 Excel 可直接加载本地文件，不需要先放入 data 文件夹；导出 PDF 用于保存当前页面视图。",
+            title: "车型分析",
+            text: "聚焦单一车型查看核心指标、趋势、区域与渠道表现，并继续下钻到大项目和媒体层级。",
+            target: '[data-ui-context="home"] [data-ui-route="model"]',
+            placement: "right",
+          },
+          {
+            title: "上传你的第一份数据，开始使用吧！",
+            text: "支持上传一份或多份同表头 Excel，文件仅在当前浏览器本地解析，上传完成后即可开始分析。",
             target: "#uploadTrigger",
             placement: "bottom",
+            action: "upload",
           },
         ];
 
@@ -9606,11 +9614,12 @@
           els.introGuideKicker.textContent = `${state.guideStep + 1} / ${INTRO_GUIDE_STEPS.length}`;
           els.introGuideTitle.textContent = step.title;
           els.introGuideText.textContent = step.text;
+          els.introGuideProgress.style.setProperty("--guide-step-count", INTRO_GUIDE_STEPS.length);
           els.introGuideProgress.innerHTML = INTRO_GUIDE_STEPS.map(
-            (_, index) => `<span class="intro-guide-dot ${index === state.guideStep ? "is-active" : ""}"></span>`
+            (_, index) => `<span class="intro-guide-dot ${index < state.guideStep ? "is-complete" : ""} ${index === state.guideStep ? "is-active" : ""}"></span>`
           ).join("");
           els.introGuidePrev.disabled = state.guideStep === 0;
-          els.introGuideNext.textContent = state.guideStep === INTRO_GUIDE_STEPS.length - 1 ? "完成" : "下一步";
+          els.introGuideNext.textContent = step.action === "upload" ? "上传 Excel" : "下一步";
           requestAnimationFrame(positionIntroGuide);
           window.setTimeout(positionIntroGuide, 220);
         }
@@ -10635,8 +10644,10 @@
             renderIntroGuide();
           });
           els.introGuideNext.addEventListener("click", () => {
+            const step = INTRO_GUIDE_STEPS[state.guideStep];
             if (state.guideStep >= INTRO_GUIDE_STEPS.length - 1) {
               closeIntroGuide();
+              if (step?.action === "upload") openUploadModal();
               return;
             }
             state.guideStep += 1;
