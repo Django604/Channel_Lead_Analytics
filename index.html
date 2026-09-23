@@ -7664,6 +7664,13 @@
           return axisModel.dimensionAxis === "y" ? axisModel.xMetrics : axisModel.yMetrics;
         }
 
+        function getChartStudioMetricFunnelGroups(metricKeys) {
+          return {
+            stageMetricKeys: metricKeys.filter((key) => !isChartStudioPercentMetric(key)),
+            rateMetricKeys: metricKeys.filter(isChartStudioPercentMetric),
+          };
+        }
+
         function normalizeChartCanvasConfig(config) {
           const dimensions = getChartStudioDimensions();
           const dimensionKeys = new Set(dimensions.filter((item) => item.key !== "total").map((item) => item.key));
@@ -7774,7 +7781,7 @@
           const direction = axisModel.dimensionAxis === "y" ? "横向" : "纵向";
           if (config.type === "scatter") return "散点图需要把一个数值指标拖入 X 轴、另一个数值指标拖入 Y 轴；维度字段可作为点标签。";
           if (config.type === "pie" || config.type === "donut") return "饼图与环形图使用维度字段生成分类，并使用另一条轴上的第一项数值指标计算占比。";
-          if (config.type === "metric-funnel") return "指标漏斗按轴内字段的排列顺序，将至少两项数值指标汇总为漏斗阶段，不要求维度字段。";
+          if (config.type === "metric-funnel") return "指标漏斗按轴内字段顺序将至少两项数量指标汇总为漏斗阶段；到店率、试驾率、锁单率等转化效率单独显示在漏斗右侧。";
           if (config.type === "category-funnel") return "分类漏斗使用维度字段生成阶段，并使用另一条轴上的第一项数值指标计算漏斗值。";
           if (config.type === "combo-bar-line") return `${direction}组合图：将指标拖入左侧柱状图区或右侧折线图区，可自由指定展示方式。`;
           if (config.type === "combo-stacked-line") return `${direction}组合图：左侧指标堆积为柱形，右侧指标使用第二数值轴绘制折线。`;
@@ -7922,7 +7929,8 @@
             return "";
           }
           if (config.type === "metric-funnel") {
-            if (metricKeys.length < 2) return "指标漏斗图至少需要放入两个数值指标";
+            const { stageMetricKeys } = getChartStudioMetricFunnelGroups(metricKeys);
+            if (stageMetricKeys.length < 2) return "指标漏斗图至少需要放入两个数量指标，转化率将单独显示在漏斗右侧";
             return "";
           }
           if (!axisModel.dimension) return "请把一个日期、大区、小区、渠道等维度字段拖入 X 轴或 Y 轴";
@@ -8009,11 +8017,110 @@
           }
 
           if (config.type === "metric-funnel" || config.type === "category-funnel") {
+            const { stageMetricKeys, rateMetricKeys } = config.type === "metric-funnel"
+              ? getChartStudioMetricFunnelGroups(metricKeys)
+              : { stageMetricKeys: [], rateMetricKeys: [] };
             const funnelData = config.type === "metric-funnel"
-              ? metricKeys.map((key) => ({ name: getChartStudioMetricLabel(key), value: getChartStudioMetricValue(summary, key), metricKey: key }))
+              ? stageMetricKeys.map((key) => {
+                  const metricIndex = metricKeys.indexOf(key);
+                  return {
+                    name: getChartStudioMetricLabel(key),
+                    value: getChartStudioMetricValue(summary, key),
+                    metricKey: key,
+                    itemStyle: { color: config.colors[metricIndex % config.colors.length] },
+                  };
+                })
               : rows.map((row) => ({ name: row.name, value: row.values[primaryMetric] }));
+            const funnelTop = 88;
+            const funnelBottom = 24;
+            const funnelGap = 3;
+            const funnelStageHeight = (Math.max(320, dom.clientHeight || 420) - funnelTop - funnelBottom - funnelGap * Math.max(0, stageMetricKeys.length - 1)) / Math.max(1, stageMetricKeys.length);
+            const ratePanelWidth = Math.max(218, Math.min(292, Math.round((dom.clientWidth || 960) * 0.265)));
+            const rateRowHeight = Math.max(52, Math.min(64, funnelStageHeight - 6));
+            const rateEntries = rateMetricKeys.map((key, index) => {
+              const targetMetricKey = CHART_STUDIO_CALCULATED_METRICS[key]?.numerator;
+              const matchedStageIndex = stageMetricKeys.indexOf(targetMetricKey);
+              const fallbackStageIndex = Math.max(0, stageMetricKeys.length - rateMetricKeys.length + index);
+              const stageIndex = matchedStageIndex >= 0 ? matchedStageIndex : Math.min(stageMetricKeys.length - 1, fallbackStageIndex);
+              const stageCenter = funnelTop + stageIndex * (funnelStageHeight + funnelGap) + funnelStageHeight / 2;
+              return { key, stageIndex, rowTop: stageCenter - rateRowHeight / 2 };
+            });
+            const firstRateTop = rateEntries.length ? Math.min(...rateEntries.map((entry) => entry.rowTop)) : funnelTop;
+            const lastRateBottom = rateEntries.length ? Math.max(...rateEntries.map((entry) => entry.rowTop + rateRowHeight)) : funnelTop;
+            const ratePanelTop = firstRateTop - 38;
+            const ratePanelHeight = lastRateBottom - ratePanelTop + 10;
+            const ratePanelGraphic = rateMetricKeys.length ? [{
+              id: "metric-funnel-rate-panel",
+              type: "group",
+              right: "1.5%",
+              top: ratePanelTop,
+              silent: true,
+              children: [
+                {
+                  type: "rect",
+                  shape: { x: 0, y: 0, width: ratePanelWidth, height: ratePanelHeight, r: 8 },
+                  style: { fill: "#f7f8fa", stroke: "#dfe3e8", lineWidth: 1 },
+                },
+                {
+                  type: "text",
+                  x: 14,
+                  y: 18,
+                  style: {
+                    text: "转化效率",
+                    fill: "#475467",
+                    font: `800 14px ${UI_FONT_FAMILY}`,
+                    verticalAlign: "middle",
+                  },
+                },
+                ...rateEntries.flatMap(({ key, rowTop }) => {
+                  const metricIndex = metricKeys.indexOf(key);
+                  const color = config.colors[metricIndex % config.colors.length];
+                  const localRowTop = rowTop - ratePanelTop;
+                  return [
+                    {
+                      type: "line",
+                      shape: { x1: -16, y1: localRowTop + rateRowHeight / 2, x2: 10, y2: localRowTop + rateRowHeight / 2 },
+                      style: { stroke: color, lineWidth: 2, opacity: 0.48 },
+                    },
+                    {
+                      type: "rect",
+                      shape: { x: 10, y: localRowTop, width: ratePanelWidth - 20, height: rateRowHeight, r: 5 },
+                      style: { fill: "#ffffff", stroke: "#e5e7eb", lineWidth: 1 },
+                    },
+                    {
+                      type: "rect",
+                      shape: { x: 10, y: localRowTop, width: 4, height: rateRowHeight, r: [5, 0, 0, 5] },
+                      style: { fill: color },
+                    },
+                    {
+                      type: "text",
+                      x: 26,
+                      y: localRowTop + 16,
+                      style: {
+                        text: getChartStudioMetricLabel(key),
+                        fill: "#667085",
+                        font: `700 12px ${UI_FONT_FAMILY}`,
+                        verticalAlign: "middle",
+                      },
+                    },
+                    {
+                      type: "text",
+                      x: 26,
+                      y: localRowTop + rateRowHeight - 17,
+                      style: {
+                        text: formatChartStudioMetricValue(key, getChartStudioMetricValue(summary, key)),
+                        fill: color,
+                        font: `900 21px ${UI_FONT_FAMILY}`,
+                        verticalAlign: "middle",
+                      },
+                    },
+                  ];
+                }),
+              ],
+            }] : [];
             chart.setOption({
               ...common,
+              graphic: ratePanelGraphic,
               tooltip: {
                 trigger: "item",
                 formatter: (params) => `${escapeHtml(params.name)}：${formatChartStudioMetricValue(params.data.metricKey || primaryMetric, params.value)}`,
@@ -8021,10 +8128,10 @@
               series: [{
                 name: config.type === "metric-funnel" ? "指标漏斗" : getChartStudioMetricLabel(primaryMetric),
                 type: "funnel",
-                left: "10%",
-                top: 88,
-                width: "80%",
-                bottom: 24,
+                left: rateMetricKeys.length ? "5%" : "10%",
+                top: funnelTop,
+                width: rateMetricKeys.length ? "62%" : "80%",
+                bottom: funnelBottom,
                 minSize: "8%",
                 maxSize: "100%",
                 sort: "none",

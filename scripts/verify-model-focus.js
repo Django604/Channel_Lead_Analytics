@@ -73,6 +73,83 @@ async function verifyIntroGuide(page) {
   console.log("侧边栏引导与最终上传入口验证通过。");
 }
 
+async function verifyMetricFunnelLayout(page) {
+  await page.evaluate(() => { window.location.hash = "#chart-studio"; });
+  await page.waitForURL(/#chart-studio$/);
+  await page.locator("#chartStudioSection:not(.is-hidden)").waitFor();
+  await page.locator("#addChartCanvasBtn").click();
+  const card = page.locator("[data-chart-canvas-id]").last();
+  await card.locator('[data-chart-control="type"]').selectOption("metric-funnel");
+  await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="y"]').click();
+  const metricKeys = [
+    "newLead",
+    "validLead",
+    "newStoreVisit",
+    "validTestDrive",
+    "lockOrder",
+    "leadToStoreRate",
+    "leadToDriveRate",
+    "leadToLockRate",
+  ];
+  for (const metricKey of metricKeys) {
+    await card.locator(`[data-chart-axis-library="y"] [data-chart-field-key="${metricKey}"]`).click();
+  }
+  await page.waitForTimeout(420);
+  const result = await card.evaluate((element) => {
+    const dom = element.querySelector("[id^='chartStudioCanvas-']");
+    const chart = window.echarts.getInstanceByDom(dom);
+    const option = chart.getOption();
+    const funnel = option.series.find((series) => series.type === "funnel");
+    const graphicTexts = [];
+    const graphicRects = [];
+    const collectText = (element) => {
+      if (element?.style?.text) graphicTexts.push(element.style.text);
+      if (element?.type === "rect" && element?.shape?.width) graphicRects.push(element.shape);
+      (element?.children || element?.elements || []).forEach(collectText);
+    };
+    (option.graphic || []).forEach(collectText);
+    const renderedRateCards = chart.getZr().storage.getDisplayList()
+      .filter((element) => element.type === "rect" && element.shape?.width >= 198 && element.shape?.height >= 52 && element.shape?.height <= 64)
+      .map((element) => {
+        const bounds = element.getBoundingRect().clone();
+        bounds.applyTransform(element.getComputedTransform());
+        return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+      });
+    return {
+      funnelNames: (funnel?.data || []).map((item) => item.name),
+      funnelLeft: funnel?.left,
+      funnelWidth: funnel?.width,
+      funnelTop: funnel?.top,
+      funnelBottom: funnel?.bottom,
+      graphicTexts,
+      graphicRects,
+      renderedRateCards,
+      graphicCount: (option.graphic || []).length,
+      canvasHeight: dom.clientHeight,
+    };
+  });
+  assert.deepEqual(result.funnelNames, ["新增线索量", "有效线索量", "新增到店量", "有效试驾量", "锁单量"]);
+  assert.ok(result.funnelNames.every((name) => !name.includes("率")), "转化率不应成为漏斗阶段");
+  assert.equal(result.funnelLeft, "5%");
+  assert.equal(result.funnelWidth, "62%");
+  assert.equal(result.graphicCount, 1, "指标漏斗右侧应生成一个转化效率面板");
+  ["线索-到店率", "线索-试驾率", "线索-锁单率"].forEach((label) => {
+    assert.ok(result.graphicTexts.includes(label), `右侧转化效率面板应显示${label}`);
+  });
+  assert.equal(result.graphicTexts.filter((text) => /%$/.test(text)).length, 3, "右侧应显示三个百分比值");
+  const rateCards = result.graphicRects.filter((shape) => shape.width >= 198 && shape.height >= 52 && shape.height <= 64);
+  assert.equal(rateCards.length, 3, "右侧应显示三张放大的转化效率卡片");
+  assert.ok(rateCards.every((shape) => shape.width >= 198), "转化效率卡片应放大展示");
+  assert.equal(result.renderedRateCards.length, 3, "应渲染三张可见的转化效率卡片");
+  const stageHeight = (result.canvasHeight - result.funnelTop - result.funnelBottom - 3 * (result.funnelNames.length - 1)) / result.funnelNames.length;
+  [2, 3, 4].forEach((stageIndex, index) => {
+    const expectedCenter = result.funnelTop + stageIndex * (stageHeight + 3) + stageHeight / 2;
+    const cardCenter = result.renderedRateCards[index].y + result.renderedRateCards[index].height / 2;
+    assert.ok(Math.abs(cardCenter - expectedCenter) < 0.6, `${result.funnelNames[stageIndex]}右侧的转化效率卡片应与该阶段居中对齐`);
+  });
+  console.log("指标漏斗数量阶段与右侧转化效率验证通过。");
+}
+
 async function main() {
   const uploadFiles = process.argv.slice(2).map((filePath) => path.resolve(filePath));
   uploadFiles.forEach((filePath) => assert.ok(fs.existsSync(filePath), `文件不存在：${filePath}`));
@@ -92,6 +169,7 @@ async function main() {
     });
     await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
     await verifyIntroGuide(page);
+    await verifyMetricFunnelLayout(page);
     await page.evaluate(() => { window.location.hash = "#model-drill?model=N7"; });
     await page.waitForURL(/#model-drill\?model=N7$/);
     await page.waitForFunction(() =>
