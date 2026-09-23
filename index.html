@@ -447,8 +447,8 @@
       .calendar-cell.is-hit { cursor: pointer; }
       .calendar-cell.is-hit:hover { transform: translateY(-2px) scale(1.02); box-shadow: var(--shadow-sm); z-index: 1; }
       .calendar-cell.is-selected { box-shadow: 0 0 0 2px rgba(13, 17, 23, 0.12); border-color: rgba(13, 17, 23, 0.25); }
-      .calendar-cell.is-up { border-color: rgba(195, 0, 47, 0.25); background: var(--brand-50); color: var(--brand); }
-      .calendar-cell.is-down { border-color: rgba(10, 155, 94, 0.25); background: var(--good-50); color: var(--good); }
+      .calendar-cell.is-up { border-color: rgba(10, 155, 94, 0.25); background: var(--good-50); color: var(--good); }
+      .calendar-cell.is-down { border-color: rgba(195, 0, 47, 0.25); background: var(--brand-50); color: var(--brand); }
       .calendar-day { font-size: 11px; font-weight: 700; }
       .calendar-change { font-size: 13px; font-weight: 800; line-height: 1.1; }
       .calendar-metric { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -464,8 +464,8 @@
         font-weight: 800;
         white-space: nowrap;
       }
-      .alert-gantt-count.is-up { background: var(--brand-50); color: var(--brand); }
-      .alert-gantt-count.is-down { background: var(--good-50); color: var(--good); }
+      .alert-gantt-count.is-up { background: var(--good-50); color: var(--good); }
+      .alert-gantt-count.is-down { background: var(--brand-50); color: var(--brand); }
       .alert-gantt-scroll { min-width: 0; overflow-x: auto; padding: 2px 1px 6px; scrollbar-width: thin; }
       .alert-gantt-inner { min-width: max(100%, var(--timeline-min-width, 668px)); }
       .alert-gantt-axis, .alert-gantt-row {
@@ -593,10 +593,10 @@
       }
       .alert-gantt-marker-label strong { font-size: 11px; }
       .alert-gantt-marker.is-reverse .alert-gantt-marker-label { margin-right: 5px; margin-left: 0; }
-      .alert-gantt-marker.is-up .alert-gantt-diamond { background: var(--brand); }
-      .alert-gantt-marker.is-up .alert-gantt-marker-label { border-color: rgba(195, 0, 47, 0.25); background: var(--brand-50); color: var(--brand); }
-      .alert-gantt-marker.is-down .alert-gantt-diamond { background: var(--good); }
-      .alert-gantt-marker.is-down .alert-gantt-marker-label { border-color: rgba(10, 155, 94, 0.25); background: var(--good-50); color: var(--good); }
+      .alert-gantt-marker.is-up .alert-gantt-diamond { background: var(--good); }
+      .alert-gantt-marker.is-up .alert-gantt-marker-label { border-color: rgba(10, 155, 94, 0.25); background: var(--good-50); color: var(--good); }
+      .alert-gantt-marker.is-down .alert-gantt-diamond { background: var(--brand); }
+      .alert-gantt-marker.is-down .alert-gantt-marker-label { border-color: rgba(195, 0, 47, 0.25); background: var(--brand-50); color: var(--brand); }
       .alert-gantt-marker:hover .alert-gantt-marker-label { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
       .alert-gantt-marker.is-selected .alert-gantt-diamond { box-shadow: 0 0 0 3px var(--text); }
       .alert-gantt-marker.is-selected .alert-gantt-marker-label { border-color: var(--text); box-shadow: var(--shadow-sm); }
@@ -661,8 +661,8 @@
       }
       .alert-gantt-selected-date { font-size: 12px; font-weight: 800; color: var(--text); }
       .alert-gantt-selected-metric { min-width: 0; color: var(--text-secondary); font-size: 11px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .alert-gantt-selected-change { color: var(--brand); font-size: 14px; font-weight: 900; }
-      .alert-gantt-selected-change.is-down { color: var(--good); }
+      .alert-gantt-selected-change { color: var(--good); font-size: 14px; font-weight: 900; }
+      .alert-gantt-selected-change.is-down { color: var(--brand); }
       .alert-gantt-selected-action { color: var(--text-muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
 
       .alert-drill {
@@ -699,8 +699,8 @@
       .alert-drill-main { min-width: 0; display: grid; gap: 4px; }
       .alert-drill-name { min-width: 0; overflow-wrap: anywhere; word-break: break-word; line-height: 1.35; font-size: 13px; font-weight: 800; color: var(--text); }
       .alert-drill-meta { color: var(--text-muted); font-size: 11px; }
-      .alert-drill-diff.is-up { color: var(--brand); font-weight: 800; }
-      .alert-drill-diff.is-down { color: var(--good); font-weight: 800; }
+      .alert-drill-diff.is-up { color: var(--good); font-weight: 800; }
+      .alert-drill-diff.is-down { color: var(--brand); font-weight: 800; }
       .alert-drill-compare {
         min-width: 0;
         display: grid;
@@ -740,17 +740,17 @@
         opacity: 0.72;
       }
       .alert-drill-bar.is-current.is-up {
-        background: linear-gradient(180deg, var(--brand-400), var(--brand));
-        box-shadow: 0 0 0 3px rgba(195, 0, 47, 0.08);
-      }
-      .alert-drill-bar.is-current.is-down {
         background: linear-gradient(180deg, #55d8a2, var(--good));
         box-shadow: 0 0 0 3px rgba(10, 155, 94, 0.08);
       }
+      .alert-drill-bar.is-current.is-down {
+        background: linear-gradient(180deg, var(--brand-400), var(--brand));
+        box-shadow: 0 0 0 3px rgba(195, 0, 47, 0.08);
+      }
       .alert-drill-bar-label { color: var(--text-muted); font-size: 10px; line-height: 1; font-weight: 800; }
       .alert-drill-change { font-size: 13px; font-weight: 800; white-space: nowrap; justify-self: end; text-align: right; line-height: 1.35; }
-      .alert-drill-change.is-up { color: var(--brand); }
-      .alert-drill-change.is-down { color: var(--good); }
+      .alert-drill-change.is-up { color: var(--good); }
+      .alert-drill-change.is-down { color: var(--brand); }
       .alert-dashboard > .empty-focus { grid-column: 1 / -1; }
 
       .capsule {
@@ -1001,8 +1001,8 @@
         gap: 7px;
       }
       .dealer-focus-change { font-size: 11px; font-weight: 800; }
-      .dealer-focus-change.is-up { color: var(--brand); }
-      .dealer-focus-change.is-down { color: var(--good); }
+      .dealer-focus-change.is-up { color: var(--good); }
+      .dealer-focus-change.is-down { color: var(--brand); }
       .dealer-focus-change.is-flat { color: var(--text-muted); }
       .dealer-focus-column-picker {
         display: flex;
@@ -2296,8 +2296,8 @@
       .matrix-cell { display: grid; gap: 2px; justify-items: center; line-height: 1.2; }
       .matrix-value { font-size: 14px; font-weight: 800; color: var(--text); }
       .matrix-change { font-size: 11px; font-weight: 800; color: var(--text-muted); }
-      .matrix-change.is-up { color: var(--brand); }
-      .matrix-change.is-down { color: var(--good); }
+      .matrix-change.is-up { color: var(--good); }
+      .matrix-change.is-down { color: var(--brand); }
       .matrix-total-row td { background: var(--surface-subtle); font-weight: 800; }
       .table-wrap { overflow: auto; max-width: 100%; border-radius: 0 0 var(--radius) var(--radius); }
       .panel > .panel-head:has(+ .table-wrap) { padding-bottom: var(--space-md); }
@@ -6084,8 +6084,8 @@
                         <h3 class="alert-calendar-title">${escapeHtml(formatDimensionText("model", calendar.model))}</h3>
                         <div class="alert-gantt-summary">
                           <span class="alert-gantt-count">${totalHits} 个异常</span>
-                          <span class="alert-gantt-count is-up">↑ ${upHits}</span>
-                          <span class="alert-gantt-count is-down">↓ ${downHits}</span>
+                          <span class="alert-gantt-count is-up">▲ ${upHits}</span>
+                          <span class="alert-gantt-count is-down">▼ ${downHits}</span>
                         </div>
                       </div>
                       <div class="alert-gantt-scroll">
@@ -7244,7 +7244,7 @@
             ? (currentValue - compareValue) * 100
             : calcChange(currentValue, compareValue);
           const direction = change > 0 ? "up" : change < 0 ? "down" : "flat";
-          const arrow = change > 0 ? "↑" : change < 0 ? "↓" : "";
+          const arrow = change > 0 ? "▲" : change < 0 ? "▼" : "";
           const amount = rowConfig.format === "percent"
             ? `${Math.abs(change).toFixed(1)}pp`
             : formatPercent(Math.abs(change));
