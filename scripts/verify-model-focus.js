@@ -43,6 +43,7 @@ async function verifyIntroGuide(page) {
     { title: "数营总览", target: '[data-ui-context="home"] [data-ui-route="home"]' },
     { title: "区域分析", target: '[data-ui-context="home"] [data-ui-route="area"]' },
     { title: "专店聚焦", target: '[data-ui-context="home"] [data-ui-route="dealer-focus"]' },
+    { title: "成本计算器", target: '[data-ui-context="home"] [data-ui-route="cost-calculator"]' },
     { title: "图表生成", target: '[data-ui-context="home"] [data-ui-route="chart-studio"]' },
     { title: "车型分析", target: '[data-ui-context="home"] [data-ui-route="model"]' },
     { title: "上传你的第一份数据，开始使用吧！", target: "#uploadTrigger" },
@@ -150,6 +151,106 @@ async function verifyMetricFunnelLayout(page) {
   console.log("指标漏斗数量阶段与右侧转化效率验证通过。");
 }
 
+async function verifyWaterfallChart(page) {
+  await page.locator("#addChartCanvasBtn").click();
+  const card = page.locator("[data-chart-canvas-id]").last();
+  await card.locator('[data-chart-control="type"]').selectOption("waterfall");
+  await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="x"]').click();
+  await card.locator('[data-chart-axis-library="x"] [data-chart-field-key="channel"]').click();
+  await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="y"]').click();
+  await card.locator('[data-chart-axis-library="y"] [data-chart-field-key="newLead"]').click();
+  await page.waitForTimeout(420);
+  const result = await card.evaluate((element) => {
+    const dom = element.querySelector("[id^='chartStudioCanvas-']");
+    const option = window.echarts.getInstanceByDom(dom).getOption();
+    const categories = option.xAxis?.[0]?.data || [];
+    const getSeries = (name) => option.series.find((series) => series.name === name);
+    return {
+      categories,
+      seriesNames: option.series.map((series) => series.name),
+      increase: getSeries("增加")?.data || [],
+      decrease: getSeries("减少")?.data || [],
+      connector: getSeries("连接线")?.data || [],
+      increaseColor: getSeries("增加")?.itemStyle?.color,
+      decreaseColor: getSeries("减少")?.itemStyle?.color,
+      connectorColor: getSeries("连接线")?.lineStyle?.color,
+    };
+  });
+  assert.ok(result.categories.length > 1, "瀑布图应包含多个分类台阶");
+  assert.ok(!result.categories.includes("合计"), "Excel 风格瀑布图不应自动追加合计柱");
+  assert.deepEqual(result.seriesNames, ["辅助", "连接线", "增加", "减少"]);
+  assert.equal(result.increaseColor, "#2563eb");
+  assert.equal(result.decreaseColor, "#c3002f");
+  assert.equal(result.connectorColor, "#b8c3cf");
+  assert.equal(result.connector.length, result.categories.length, "每个瀑布台阶都应具有累计连接点");
+  assert.equal(await card.locator(".chart-color-option").count(), 2, "瀑布图颜色面板应提供增加与减少两个颜色项");
+  console.log("Excel 风格瀑布图台阶、连接线与配色验证通过。");
+}
+
+async function verifyCostCalculator(page) {
+  await page.evaluate(() => { window.location.hash = "#cost-calculator"; });
+  await page.waitForURL(/#cost-calculator$/);
+  await page.locator("#costCalculatorSection:not(.is-hidden)").waitFor();
+  assert.equal(await page.locator("#uiSidebarBrandName").innerText(), "成本计算器");
+  assert.equal(await page.locator('[data-ui-context="home"] .ui-sidebar-link.is-active').count(), 1, "成本页侧栏只能高亮一个入口");
+  assert.ok(await page.locator('[data-ui-route="cost-calculator"]').evaluate((link) => link.classList.contains("is-active")), "成本页应高亮成本计算器入口");
+  assert.ok(!(await page.locator('[data-ui-context="home"] [data-ui-route="home"]').evaluate((link) => link.classList.contains("is-active"))), "成本页不应继续高亮数营总览");
+  assert.equal(await page.locator('#costCalculatorModelSelect option[value="全部"]').innerText(), "全车系（不含探陆）");
+  assert.equal(await page.locator("#costCalculatorModelSelect").inputValue(), "全部");
+  assert.deepEqual(
+    await page.locator("#costCalculatorTableMount tbody .cost-table-channel").allTextContents(),
+    ["R3", "R4", "R5", "R6", "R8", "R10", "R11"],
+    "成本计算器只应展示七个有费用的渠道"
+  );
+  assert.equal(await page.locator("#costMethodList [data-cost-method]").count(), 6);
+  await page.locator('#costMethodList [data-cost-method="CPT"]').click();
+  assert.match(await page.locator("#costFormulaText").innerText(), /^CPT = 渠道费用 ÷ 渠道新增到店量$/);
+  assert.ok(
+    (await page.locator("#costCalculatorTableMount .cost-performance span").first().innerText()) === "新增到店量",
+    "CPT 应使用新增到店量作为实绩"
+  );
+
+  const dateState = await page.locator("#startDate").evaluate((start, endSelector) => {
+    const end = document.querySelector(endSelector);
+    return { min: start.min, max: start.max, start: start.value, end: end?.value || "" };
+  }, "#endDate");
+  if (dateState.min && dateState.max) {
+    const targetDate = dateState.start === dateState.min && dateState.end === dateState.min ? dateState.max : dateState.min;
+    await page.locator("#startDate").fill(targetDate);
+    await page.locator("#endDate").fill(targetDate);
+    await page.locator("#startDate").dispatchEvent("change");
+    await page.locator("#endDate").dispatchEvent("change");
+    const beforeCount = await page.locator("#costCalculatorTableMount .cost-period-head").count();
+    await page.locator("#addCostPeriodBtn").click();
+    assert.equal(await page.locator("#costCalculatorTableMount .cost-period-head").count(), beforeCount + 1, "应向右新增时间范围");
+  }
+
+  await page.locator("#openCostFeeModalBtn").click();
+  await page.locator("#costFeeModal.is-open").waitFor();
+  const periodOptions = await page.locator("#costFeePeriodSelect option").count();
+  await page.locator("#costFeePeriodSelect").selectOption({ index: periodOptions - 1 });
+  await page.locator("#costFeePasteInput").fill([
+    "R3\t2,777,483",
+    "R4\t44,214,168",
+    "R5\t4,260,000",
+    "R6\t27,712,844",
+    "R8\t29,901,822",
+    "\t6,800,000",
+    "R10\t55,956,038",
+    "R11\t5,776,374",
+    "R1\t99,999",
+  ].join("\n"));
+  assert.match(await page.locator("#costFeePastePreview").innerText(), /识别 7 个成本渠道/);
+  assert.match(await page.locator("#costFeePastePreview").innerText(), /已忽略 2 行/);
+  await page.locator("#applyCostFeesBtn").click();
+  await page.locator("#costFeeModal").waitFor({ state: "hidden" });
+  const r3Row = page.locator("#costCalculatorTableMount tbody tr").filter({ has: page.locator("th", { hasText: /^R3$/ }) });
+  assert.equal(await r3Row.locator(".cost-fee-input").last().inputValue(), "2777483");
+  const performance = Number((await r3Row.locator(".cost-performance strong").last().innerText()).replace(/,/g, ""));
+  if (performance > 0) assert.match(await r3Row.locator(".cost-result strong").last().innerText(), /^¥/);
+  console.log("成本计算器渠道范围、CPT、时间对比及 Excel 费用粘贴验证通过。");
+}
+
 async function main() {
   const uploadFiles = process.argv.slice(2).map((filePath) => path.resolve(filePath));
   uploadFiles.forEach((filePath) => assert.ok(fs.existsSync(filePath), `文件不存在：${filePath}`));
@@ -170,6 +271,8 @@ async function main() {
     await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
     await verifyIntroGuide(page);
     await verifyMetricFunnelLayout(page);
+    await verifyWaterfallChart(page);
+    await verifyCostCalculator(page);
     await page.evaluate(() => { window.location.hash = "#model-drill?model=N7"; });
     await page.waitForURL(/#model-drill\?model=N7$/);
     await page.waitForFunction(() =>

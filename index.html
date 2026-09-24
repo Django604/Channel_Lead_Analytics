@@ -1190,6 +1190,130 @@
       .dealer-focus-scope-option span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .dealer-focus-scope-selected { color: var(--text-muted); font-size: 12px; font-weight: 700; }
 
+      #costCalculatorSection { width: 100%; }
+      .cost-calculator-actions { gap: 8px; }
+      .cost-calculator-toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.34fr) minmax(680px, 1fr);
+        gap: 14px;
+        margin-bottom: 12px;
+        padding: 14px;
+        border-left: 3px solid var(--brand);
+        background: var(--surface-subtle);
+      }
+      .cost-calculator-control { display: grid; gap: 6px; }
+      .cost-calculator-control > span { color: var(--text-muted); font-size: 11px; font-weight: 800; }
+      .cost-calculator-control select {
+        width: 100%;
+        height: 42px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 0 11px;
+        color: var(--text);
+        background: var(--surface);
+        font: inherit;
+      }
+      .cost-method-list { display: grid; grid-template-columns: repeat(6, minmax(94px, 1fr)); gap: 7px; }
+      .cost-method-btn {
+        min-height: 42px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 6px 9px;
+        color: var(--text);
+        background: var(--surface);
+        text-align: left;
+        cursor: pointer;
+      }
+      .cost-method-btn strong { display: block; font-size: 13px; }
+      .cost-method-btn span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 9px; white-space: nowrap; }
+      .cost-method-btn:hover { border-color: var(--border-strong); }
+      .cost-method-btn.is-active { border-color: var(--brand); color: var(--brand); background: var(--brand-50); }
+      .cost-method-btn.is-active span { color: var(--brand); }
+      .cost-calculator-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        background: rgba(37, 99, 235, 0.05);
+        color: var(--text-secondary);
+        font-size: 11px;
+      }
+      .cost-calculator-note strong { color: var(--info); }
+      .cost-table-shell { overflow-x: auto; border: 1px solid var(--border-strong); background: var(--surface); box-shadow: var(--shadow-sm); }
+      .cost-table { width: 100%; min-width: max-content; border-collapse: collapse; table-layout: fixed; }
+      .cost-table th,
+      .cost-table td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); text-align: center; }
+      .cost-table tr:last-child th,
+      .cost-table tr:last-child td { border-bottom: 0; }
+      .cost-table th:last-child,
+      .cost-table td:last-child { border-right: 0; }
+      .cost-table-channel {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        width: 108px;
+        min-width: 108px;
+        background: #f7f8fa;
+        font-size: 15px;
+        font-weight: 900;
+      }
+      .cost-table thead .cost-table-channel { z-index: 3; }
+      .cost-period-head { width: 390px; min-width: 390px; height: 64px; padding: 8px 12px; background: #f1f3f6; }
+      .cost-period-head-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+      .cost-period-title { display: block; color: var(--text); font-size: 14px; font-weight: 900; }
+      .cost-period-range { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10px; font-weight: 700; }
+      .cost-period-remove {
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text-muted);
+        background: var(--surface);
+        font: inherit;
+        font-weight: 900;
+        cursor: pointer;
+      }
+      .cost-period-remove:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-50); }
+      .cost-period-cell { display: grid; grid-template-columns: 116px minmax(94px, 1fr) minmax(112px, auto); align-items: center; gap: 12px; min-height: 60px; padding: 8px 12px; }
+      .cost-fee-field { display: grid; gap: 3px; text-align: left; }
+      .cost-fee-field span { color: var(--text-muted); font-size: 9px; font-weight: 700; }
+      .cost-fee-input {
+        width: 116px;
+        height: 34px;
+        border: 1px solid rgba(195, 0, 47, 0.3);
+        border-radius: var(--radius-sm);
+        padding: 0 8px;
+        color: var(--brand);
+        background: var(--brand-50);
+        text-align: right;
+        font: inherit;
+        font-weight: 900;
+      }
+      .cost-fee-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-100); }
+      .cost-performance { min-width: 0; text-align: left; }
+      .cost-performance strong { display: block; color: var(--text); font-size: 14px; }
+      .cost-performance span { display: block; margin-top: 2px; overflow: hidden; color: var(--text-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+      .cost-result { min-width: 112px; text-align: right; }
+      .cost-result strong { display: block; color: var(--text); font-size: 18px; }
+      .cost-result span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 9px; font-weight: 900; }
+      .cost-result .is-good { color: var(--good); }
+      .cost-result .is-bad { color: var(--brand); }
+      .cost-calculator-empty { padding: 36px 18px; color: var(--text-muted); text-align: center; }
+      .upload-dialog.cost-fee-dialog { width: min(700px, calc(100vw - 32px)); }
+      .cost-fee-modal-field { display: grid; gap: 6px; }
+      .cost-fee-modal-field label { color: var(--text-secondary); font-size: 12px; font-weight: 800; }
+      .cost-fee-modal-field select,
+      .cost-fee-modal-field textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); background: var(--surface); font: inherit; }
+      .cost-fee-modal-field select { height: 40px; padding: 0 10px; }
+      .cost-fee-modal-field textarea { min-height: 190px; resize: vertical; padding: 11px 12px; font-family: Consolas, monospace; line-height: 1.65; }
+      .cost-fee-modal-field select:focus,
+      .cost-fee-modal-field textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-100); }
+      .cost-fee-preview { min-height: 58px; padding: 10px 12px; border: 1px solid rgba(37, 99, 235, 0.18); border-radius: var(--radius-sm); color: var(--text-secondary); background: rgba(37, 99, 235, 0.05); font-size: 11px; line-height: 1.7; }
+      .cost-fee-preview strong { color: var(--info); }
+
       #chartStudioSection {
         width: min(100%, 1320px);
         margin-inline: auto;
@@ -2745,6 +2869,7 @@
         .funnel-compare-shell.has-compare { grid-template-columns: 1fr; }
         .drawer-body { grid-template-columns: 1fr; }
         .cost-strip { grid-template-columns: minmax(160px, 280px); }
+        .cost-calculator-toolbar { grid-template-columns: 1fr; }
       }
 
       @media (max-width: 920px) {
@@ -2790,6 +2915,7 @@
         .section-head { align-items: flex-start; flex-direction: column; }
         .hero-top { grid-template-columns: 1fr; }
         .drill-shell.has-channel-matrix { grid-template-columns: 1fr; }
+        .cost-method-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       }
 
       @media (max-width: 640px) {
@@ -2889,6 +3015,10 @@
         <a class="ui-sidebar-link" href="#dealer-focus" data-ui-route="dealer-focus">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 10h16v10H4V10Zm-1 0 2-6h14l2 6M8 14h3v6m3-6h3" /></svg>
           <span>专店聚焦</span>
+        </a>
+        <a class="ui-sidebar-link" href="#cost-calculator" data-ui-route="cost-calculator">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm3 3h8v3H8V6Zm0 6h2m2 0h2m2 0h1M8 15h2m2 0h2m2 0h1M8 18h2m2 0h2m2 0h1" /></svg>
+          <span>成本计算器</span>
         </a>
         <a class="ui-sidebar-link" href="#chart-studio" data-ui-route="chart-studio">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V4h4v15h-4Zm6 0v-7h4v7h-4ZM3 21h18" /></svg>
@@ -3159,6 +3289,36 @@
         </div>
       </section>
 
+      <section class="section is-hidden" id="costCalculatorSection" aria-label="成本计算器">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">成本计算器</h2>
+            <p class="section-note">默认统计除探陆外全车系；仅展示 R3、R4、R5、R6、R8、R10、R11，并按手填费用计算渠道成本。</p>
+          </div>
+          <div class="section-actions cost-calculator-actions">
+            <button class="btn btn-subtle" data-action="go-home">返回首页</button>
+            <button class="btn btn-subtle" id="openCostFeeModalBtn" type="button">粘贴渠道费用</button>
+            <button class="btn btn-primary" id="addCostPeriodBtn" type="button">添加时间范围</button>
+            <div class="capsule capsule-dark" id="costCalculatorScope">-</div>
+          </div>
+        </div>
+        <div class="cost-calculator-toolbar">
+          <label class="cost-calculator-control" for="costCalculatorModelSelect">
+            <span>车型筛选</span>
+            <select id="costCalculatorModelSelect"></select>
+          </label>
+          <div class="cost-calculator-control">
+            <span>成本计算方法</span>
+            <div class="cost-method-list" id="costMethodList"></div>
+          </div>
+        </div>
+        <div class="cost-calculator-note">
+          <span>当前公式：<strong id="costFormulaText">-</strong></span>
+          <span id="costDateHint">顶部选择日期后，点击“添加时间范围”即可向右追加对比列。</span>
+        </div>
+        <div id="costCalculatorTableMount"></div>
+      </section>
+
       <section class="section is-hidden" id="chartStudioSection">
         <div class="section-head">
           <div>
@@ -3275,6 +3435,33 @@
 
     <div class="dealer-focus-picker" id="dealerFocusPicker" role="dialog" aria-label="查询并选择表格列" hidden></div>
     <div class="upload-modal dealer-focus-scope-modal" id="dealerFocusScopeModal" aria-hidden="true"></div>
+    <div class="upload-modal" id="costFeeModal" aria-hidden="true">
+      <div class="upload-dialog cost-fee-dialog" role="dialog" aria-modal="true" aria-labelledby="costFeeModalTitle">
+        <div class="upload-modal-head">
+          <div>
+            <div class="upload-modal-kicker">Excel Paste</div>
+            <h2 class="upload-modal-title" id="costFeeModalTitle">粘贴渠道费用</h2>
+            <p class="upload-modal-note">在 Excel 中复制“渠道 + 费用”两列，然后直接粘贴；空渠道及非成本渠道会自动忽略。</p>
+          </div>
+          <button class="btn btn-ghost" id="costFeeModalClose" type="button">关闭</button>
+        </div>
+        <div class="upload-modal-body">
+          <div class="cost-fee-modal-field">
+            <label for="costFeePeriodSelect">费用所属时间范围</label>
+            <select id="costFeePeriodSelect"></select>
+          </div>
+          <div class="cost-fee-modal-field">
+            <label for="costFeePasteInput">Excel 费用数据</label>
+            <textarea id="costFeePasteInput" placeholder="示例：&#10;R3&#9;2,777,483&#10;R4&#9;44,214,168&#10;R5&#9;4,260,000"></textarea>
+          </div>
+          <div class="cost-fee-preview" id="costFeePastePreview">等待粘贴。仅读取 R3、R4、R5、R6、R8、R10、R11。</div>
+        </div>
+        <div class="upload-modal-foot">
+          <button class="btn btn-ghost" id="costFeeModalCancel" type="button">取消</button>
+          <button class="btn btn-primary" id="applyCostFeesBtn" type="button">应用费用</button>
+        </div>
+      </div>
+    </div>
 
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <aside class="drawer" id="stageDrawer">
@@ -3373,6 +3560,15 @@
           storeToLockRate: { label: "到店-锁单率", numerator: "lockOrder", denominator: "newStoreVisit", format: "percent" },
         };
         const CHART_STUDIO_METRICS = { ...METRICS, ...CHART_STUDIO_CALCULATED_METRICS };
+        const COST_CHANNELS = ["R3", "R4", "R5", "R6", "R8", "R10", "R11"];
+        const COST_METHODS = {
+          CPL: { label: "单个线索成本", metricKey: "newLead" },
+          CPQL: { label: "单个有效线索成本", metricKey: "validLead" },
+          CPT: { label: "单个到店成本", metricKey: "newStoreVisit" },
+          CPTD: { label: "单个试驾成本", metricKey: "validTestDrive" },
+          CPO: { label: "单个订单成本", metricKey: "lockOrder" },
+          CPS: { label: "单个成交成本", metricKey: "delivery" },
+        };
 
         const DATASET_DIMENSION_FIELDS = [
           { key: "date", schemaKey: "dateId", valuesKey: "dates", label: "日期", headers: ["日期", "统计日期", "数据日期"] },
@@ -3445,6 +3641,12 @@
             types: [
               { key: "metric-funnel", label: "指标漏斗图" },
               { key: "category-funnel", label: "分类漏斗图" },
+            ],
+          },
+          {
+            label: "瀑布图",
+            types: [
+              { key: "waterfall", label: "瀑布图" },
             ],
           },
           {
@@ -3560,6 +3762,12 @@
             placement: "right",
           },
           {
+            title: "成本计算器",
+            text: "按车型和时间范围汇总渠道实绩，批量粘贴渠道费用后切换 CPL、CPT、CPO 等口径比较成本变化。",
+            target: '[data-ui-context="home"] [data-ui-route="cost-calculator"]',
+            placement: "right",
+          },
+          {
             title: "图表生成",
             text: "拖动维度和指标设置 X、Y 轴，自由筛选数据、选择图表类型，并在多个画布中完成自定义分析。",
             target: '[data-ui-context="home"] [data-ui-route="chart-studio"]',
@@ -3616,6 +3824,16 @@
             scopeValues: [],
             scopeDraftDimension: "dealer",
             scopeDraftValues: [],
+          },
+          costCalculator: {
+            method: "CPL",
+            model: "全部",
+            serial: 1,
+            periods: [],
+            fees: {},
+            pasteOpen: false,
+            pasteText: "",
+            pastePeriodId: "",
           },
           chartStudioSerial: 1,
           chartCanvases: [createDefaultChartCanvas(1)],
@@ -3699,6 +3917,22 @@
           dealerFocusChannelTableMount: document.getElementById("dealerFocusChannelTableMount"),
           openDealerFocusScopeBtn: document.getElementById("openDealerFocusScopeBtn"),
           dealerFocusScopeModal: document.getElementById("dealerFocusScopeModal"),
+          costCalculatorSection: document.getElementById("costCalculatorSection"),
+          costCalculatorModelSelect: document.getElementById("costCalculatorModelSelect"),
+          costMethodList: document.getElementById("costMethodList"),
+          costFormulaText: document.getElementById("costFormulaText"),
+          costDateHint: document.getElementById("costDateHint"),
+          costCalculatorScope: document.getElementById("costCalculatorScope"),
+          costCalculatorTableMount: document.getElementById("costCalculatorTableMount"),
+          openCostFeeModalBtn: document.getElementById("openCostFeeModalBtn"),
+          addCostPeriodBtn: document.getElementById("addCostPeriodBtn"),
+          costFeeModal: document.getElementById("costFeeModal"),
+          costFeeModalClose: document.getElementById("costFeeModalClose"),
+          costFeeModalCancel: document.getElementById("costFeeModalCancel"),
+          costFeePeriodSelect: document.getElementById("costFeePeriodSelect"),
+          costFeePasteInput: document.getElementById("costFeePasteInput"),
+          costFeePastePreview: document.getElementById("costFeePastePreview"),
+          applyCostFeesBtn: document.getElementById("applyCostFeesBtn"),
           chartStudioSection: document.getElementById("chartStudioSection"),
           addChartCanvasBtn: document.getElementById("addChartCanvasBtn"),
           chartStudioScopeCapsule: document.getElementById("chartStudioScopeCapsule"),
@@ -4085,6 +4319,9 @@
           } else if (view === "dealer-focus") {
             state.view = "dealer-focus";
             state.drill = createDefaultDrill();
+          } else if (view === "cost-calculator") {
+            state.view = "cost-calculator";
+            state.drill = createDefaultDrill();
           } else if (view === "chart-studio") {
             state.view = "chart-studio";
             state.drill = createDefaultDrill();
@@ -4099,11 +4336,13 @@
           const isDrillView = state.view === "model-drill";
           const isAreaView = state.view === "area";
           const isDealerFocusView = state.view === "dealer-focus";
+          const isCostCalculatorView = state.view === "cost-calculator";
           const isChartStudioView = state.view === "chart-studio";
           els.alertSection.classList.toggle("is-hidden", state.view !== "home");
           els.overviewSection.classList.toggle("is-hidden", state.view !== "home");
           els.areaSection.classList.toggle("is-hidden", !isAreaView);
           els.dealerFocusSection.classList.toggle("is-hidden", !isDealerFocusView);
+          els.costCalculatorSection.classList.toggle("is-hidden", !isCostCalculatorView);
           els.chartStudioSection.classList.toggle("is-hidden", !isChartStudioView);
           els.focusSection.classList.toggle("is-hidden", !isDrillView);
           els.drillSection.classList.toggle("is-hidden", !isDrillView);
@@ -7395,7 +7634,7 @@
           const isOpen = state.dealerFocus.scopeOpen;
           els.dealerFocusScopeModal.classList.toggle("is-open", isOpen);
           els.dealerFocusScopeModal.setAttribute("aria-hidden", String(!isOpen));
-          document.body.classList.toggle("is-upload-modal-open", state.uploadModalOpen || isOpen);
+          document.body.classList.toggle("is-upload-modal-open", state.uploadModalOpen || isOpen || state.costCalculator.pasteOpen);
           if (!isOpen) {
             els.dealerFocusScopeModal.innerHTML = "";
             return;
@@ -7569,6 +7808,274 @@
           renderDealerFocus();
         }
 
+        function resetCostCalculator() {
+          state.costCalculator = {
+            method: "CPL",
+            model: "全部",
+            serial: 1,
+            periods: [],
+            fees: {},
+            pasteOpen: false,
+            pasteText: "",
+            pastePeriodId: "",
+          };
+          captureCostPeriodFromMainRange({ allowDuplicate: true });
+        }
+
+        function captureCostPeriodFromMainRange(options = {}) {
+          const startDate = hasUsableDateDimension() ? els.startDate.value : "";
+          const endDate = hasUsableDateDimension() ? els.endDate.value : "";
+          const existing = state.costCalculator.periods.find((period) => period.startDate === startDate && period.endDate === endDate);
+          if (existing && !options.allowDuplicate) return null;
+          const id = `cost-period-${state.costCalculator.serial++}`;
+          state.costCalculator.periods.push({ id, startDate, endDate });
+          state.costCalculator.fees[id] = {};
+          return id;
+        }
+
+        function addCostPeriod() {
+          if (!hasUsableDateDimension()) {
+            showToast("当前数据没有日期维度，无需添加时间范围", "warning");
+            return;
+          }
+          const id = captureCostPeriodFromMainRange();
+          if (!id) {
+            showToast("顶部当前时间范围已在对比表中", "warning");
+            return;
+          }
+          renderCostCalculator();
+        }
+
+        function removeCostPeriod(periodId) {
+          if (state.costCalculator.periods.length <= 1) return;
+          state.costCalculator.periods = state.costCalculator.periods.filter((period) => period.id !== periodId);
+          delete state.costCalculator.fees[periodId];
+          if (state.costCalculator.pastePeriodId === periodId) {
+            state.costCalculator.pastePeriodId = state.costCalculator.periods[0]?.id || "";
+          }
+          renderCostCalculator();
+        }
+
+        function normalizeCostChannel(value) {
+          const normalized = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+          const match = normalized.match(/^R(10|11|3|4|5|6|8)(?:\D|$)/);
+          return match ? `R${match[1]}` : "";
+        }
+
+        function getCostPeriodSummaries(period) {
+          const method = COST_METHODS[state.costCalculator.method] || COST_METHODS.CPL;
+          const metricIndex = state.dataset.schemaIndex[method.metricKey];
+          const summaries = Object.fromEntries(COST_CHANNELS.map((channel) => [channel, 0]));
+          state.dataset.rows.forEach((row) => {
+            if (hasUsableDateDimension()) {
+              const rowDate = getDimensionValue(row, "date");
+              if (rowDate < period.startDate || rowDate > period.endDate) return;
+            }
+            if (state.costCalculator.model !== "全部" && getDimensionValue(row, "model") !== state.costCalculator.model) return;
+            const channel = normalizeCostChannel(getDimensionValue(row, "channel"));
+            if (!channel) return;
+            summaries[channel] += Number(row[metricIndex] || 0);
+          });
+          return summaries;
+        }
+
+        function getCostFee(periodId, channel) {
+          return Number(state.costCalculator.fees[periodId]?.[channel] || 0);
+        }
+
+        function getCostValue(periodId, channel, performance) {
+          const fee = getCostFee(periodId, channel);
+          return fee > 0 && performance > 0 ? fee / performance : 0;
+        }
+
+        function formatCostCurrency(value) {
+          return value > 0
+            ? `¥${value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : "-";
+        }
+
+        function renderCostResult(periodIndex, period, channel, performance, baseCost) {
+          const fee = getCostFee(period.id, channel);
+          const cost = getCostValue(period.id, channel, performance);
+          if (!fee) return '<strong>-</strong><span>待录费用</span>';
+          if (!performance) return '<strong>-</strong><span>无实绩</span>';
+          if (periodIndex === 0 || !baseCost) return `<strong>${formatCostCurrency(cost)}</strong><span>基准</span>`;
+          const change = (cost - baseCost) / baseCost;
+          if (Math.abs(change) < 0.0005) return `<strong>${formatCostCurrency(cost)}</strong><span>持平</span>`;
+          const lower = change < 0;
+          return `<strong>${formatCostCurrency(cost)}</strong><span class="${lower ? "is-good" : "is-bad"}">${lower ? "▼" : "▲"} ${formatPercent(Math.abs(change))}</span>`;
+        }
+
+        function refreshCostChannelOutputs(channel) {
+          const outputs = [...els.costCalculatorTableMount.querySelectorAll(`[data-cost-output-channel="${channel}"]`)];
+          if (!outputs.length) return;
+          const baseOutput = outputs.find((output) => Number(output.dataset.costPeriodIndex) === 0);
+          const baseCost = baseOutput
+            ? getCostValue(baseOutput.dataset.costPeriodId, channel, Number(baseOutput.dataset.costPerformance || 0))
+            : 0;
+          outputs.forEach((output) => {
+            const periodIndex = Number(output.dataset.costPeriodIndex);
+            const period = state.costCalculator.periods[periodIndex];
+            if (!period) return;
+            output.innerHTML = renderCostResult(
+              periodIndex,
+              period,
+              channel,
+              Number(output.dataset.costPerformance || 0),
+              baseCost
+            );
+          });
+        }
+
+        function renderCostCalculator() {
+          if (state.view !== "cost-calculator") return;
+          const modelOptions = getVisibleDimensionValues(state.dataset.models);
+          populateSelect(els.costCalculatorModelSelect, modelOptions, (value) => formatDimensionText("model", value));
+          if (!modelOptions.includes(state.costCalculator.model)) state.costCalculator.model = "全部";
+          els.costCalculatorModelSelect.value = state.costCalculator.model;
+          const allModelOption = els.costCalculatorModelSelect.querySelector('option[value="全部"]');
+          if (allModelOption) allModelOption.textContent = "全车系（不含探陆）";
+          els.costCalculatorModelSelect.disabled = !hasDatasetDimension("model");
+
+          const method = COST_METHODS[state.costCalculator.method] || COST_METHODS.CPL;
+          els.costMethodList.innerHTML = Object.entries(COST_METHODS).map(([key, config]) => `
+            <button class="cost-method-btn ${key === state.costCalculator.method ? "is-active" : ""}" type="button" data-cost-method="${key}">
+              <strong>${key}</strong><span>${config.label}</span>
+            </button>
+          `).join("");
+          els.costFormulaText.textContent = `${state.costCalculator.method} = 渠道费用 ÷ 渠道${METRICS[method.metricKey]?.label || method.metricKey}`;
+          els.costDateHint.textContent = hasUsableDateDimension()
+            ? `顶部当前范围：${formatAnalysisRange(els.startDate.value, els.endDate.value)}；修改后点击“添加时间范围”可向右追加。`
+            : "当前数据没有日期维度，按全量实绩计算。";
+          els.addCostPeriodBtn.disabled = !hasUsableDateDimension();
+          els.openCostFeeModalBtn.disabled = !state.costCalculator.periods.length;
+          els.costCalculatorScope.textContent = `${state.costCalculator.model === "全部" ? "全车系（不含探陆）" : formatDimensionText("model", state.costCalculator.model)} · ${state.costCalculator.periods.length} 个时间范围`;
+
+          if (!hasDatasetDimension("channel")) {
+            els.costCalculatorTableMount.innerHTML = '<div class="cost-calculator-empty">当前数据未提供渠道维度，无法计算渠道成本</div>';
+            return;
+          }
+
+          const periodSummaries = state.costCalculator.periods.map((period) => getCostPeriodSummaries(period));
+          const headerCells = state.costCalculator.periods.map((period, index) => `
+            <th class="cost-period-head">
+              <div class="cost-period-head-inner">
+                <div>
+                  <span class="cost-period-title">时间范围 ${index + 1}</span>
+                  <span class="cost-period-range">${escapeHtml(formatAnalysisRange(period.startDate, period.endDate))}</span>
+                </div>
+                ${state.costCalculator.periods.length > 1 ? `<button class="cost-period-remove" type="button" data-cost-period-remove="${period.id}" aria-label="删除时间范围 ${index + 1}">×</button>` : ""}
+              </div>
+            </th>
+          `).join("");
+          const bodyRows = COST_CHANNELS.map((channel) => {
+            const basePerformance = Number(periodSummaries[0]?.[channel] || 0);
+            const baseCost = getCostValue(state.costCalculator.periods[0]?.id, channel, basePerformance);
+            return `
+              <tr>
+                <th class="cost-table-channel" scope="row">${channel}</th>
+                ${state.costCalculator.periods.map((period, periodIndex) => {
+                  const performance = Number(periodSummaries[periodIndex]?.[channel] || 0);
+                  const fee = state.costCalculator.fees[period.id]?.[channel] ?? "";
+                  return `
+                    <td>
+                      <div class="cost-period-cell">
+                        <label class="cost-fee-field">
+                          <span>费用（元）</span>
+                          <input class="cost-fee-input" type="number" min="0" step="0.01" inputmode="decimal" value="${escapeHtml(fee)}" data-cost-fee-period="${period.id}" data-cost-fee-channel="${channel}" placeholder="输入费用" />
+                        </label>
+                        <div class="cost-performance"><strong>${formatNumber(performance)}</strong><span>${escapeHtml(METRICS[method.metricKey]?.label || method.metricKey)}</span></div>
+                        <div class="cost-result" data-cost-output-period-id="${period.id}" data-cost-output-period-index="${periodIndex}" data-cost-output-channel="${channel}" data-cost-performance="${performance}">${renderCostResult(periodIndex, period, channel, performance, baseCost)}</div>
+                      </div>
+                    </td>
+                  `;
+                }).join("")}
+              </tr>
+            `;
+          }).join("");
+          els.costCalculatorTableMount.innerHTML = `
+            <div class="cost-table-shell">
+              <table class="cost-table">
+                <thead><tr><th class="cost-table-channel">渠道</th>${headerCells}</tr></thead>
+                <tbody>${bodyRows}</tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        function parseCostFeePaste(text = state.costCalculator.pasteText) {
+          const accepted = new Map();
+          let ignored = 0;
+          String(text || "").split(/\r?\n/).forEach((line) => {
+            if (!line.trim()) return;
+            const columns = line.split("\t");
+            const fallback = columns.length < 2 ? line.match(/^\s*(R\d+)\s+([\d,.￥¥\s]+)\s*$/i) : null;
+            const channel = normalizeCostChannel(columns.length >= 2 ? columns[0] : fallback?.[1] || "");
+            const rawValue = columns.length >= 2 ? columns.slice(1).join("") : fallback?.[2] || "";
+            const value = Number(rawValue.replace(/[,￥¥\s]/g, ""));
+            if (!channel || !Number.isFinite(value) || value < 0) {
+              ignored += 1;
+              return;
+            }
+            accepted.set(channel, value);
+          });
+          return { accepted, ignored };
+        }
+
+        function renderCostFeePastePreview() {
+          if (!state.costCalculator.pasteText.trim()) {
+            els.costFeePastePreview.textContent = "等待粘贴。仅读取 R3、R4、R5、R6、R8、R10、R11。";
+            els.applyCostFeesBtn.disabled = true;
+            return;
+          }
+          const { accepted, ignored } = parseCostFeePaste();
+          const rows = [...accepted].map(([channel, value]) => `${channel}：${formatNumber(value)} 元`).join("；");
+          els.costFeePastePreview.innerHTML = `<strong>识别 ${accepted.size} 个成本渠道</strong>${rows ? `<br>${escapeHtml(rows)}` : ""}${ignored ? `<br>已忽略 ${ignored} 行空渠道、非成本渠道或无效金额。` : ""}`;
+          els.applyCostFeesBtn.disabled = accepted.size === 0;
+        }
+
+        function renderCostFeeModal() {
+          const isOpen = state.costCalculator.pasteOpen;
+          els.costFeeModal.classList.toggle("is-open", isOpen);
+          els.costFeeModal.setAttribute("aria-hidden", String(!isOpen));
+          document.body.classList.toggle("is-upload-modal-open", state.uploadModalOpen || state.dealerFocus.scopeOpen || isOpen);
+          if (!isOpen) return;
+          els.costFeePeriodSelect.innerHTML = state.costCalculator.periods.map((period, index) => `
+            <option value="${period.id}">时间范围 ${index + 1} · ${escapeHtml(formatAnalysisRange(period.startDate, period.endDate))}</option>
+          `).join("");
+          if (!state.costCalculator.periods.some((period) => period.id === state.costCalculator.pastePeriodId)) {
+            state.costCalculator.pastePeriodId = state.costCalculator.periods[0]?.id || "";
+          }
+          els.costFeePeriodSelect.value = state.costCalculator.pastePeriodId;
+          els.costFeePasteInput.value = state.costCalculator.pasteText;
+          renderCostFeePastePreview();
+        }
+
+        function openCostFeeModal() {
+          state.costCalculator.pasteOpen = true;
+          state.costCalculator.pasteText = "";
+          state.costCalculator.pastePeriodId = state.costCalculator.periods[0]?.id || "";
+          renderCostFeeModal();
+          requestAnimationFrame(() => els.costFeePasteInput.focus());
+        }
+
+        function closeCostFeeModal() {
+          state.costCalculator.pasteOpen = false;
+          renderCostFeeModal();
+        }
+
+        function applyCostFees() {
+          const { accepted } = parseCostFeePaste();
+          const periodId = state.costCalculator.pastePeriodId;
+          if (!accepted.size || !state.costCalculator.fees[periodId]) return;
+          accepted.forEach((value, channel) => {
+            state.costCalculator.fees[periodId][channel] = value;
+          });
+          closeCostFeeModal();
+          renderCostCalculator();
+          showToast(`已应用 ${accepted.size} 个渠道费用`, "success");
+        }
+
         function getChartStudioDimensions() {
           return [
             { key: "total", label: "全部数据" },
@@ -7656,6 +8163,10 @@
         function getChartStudioRenderMetricKeys(config, axisModel = getChartStudioAxisModel(config)) {
           if (config.type === "scatter" || config.type === "metric-funnel") {
             return [...new Set([...axisModel.xMetrics, ...axisModel.yMetrics])];
+          }
+          if (config.type === "waterfall") {
+            const metricKeys = axisModel.dimensionAxis === "y" ? axisModel.xMetrics : axisModel.yMetrics;
+            return metricKeys.filter((key) => !isChartStudioPercentMetric(key)).slice(0, 1);
           }
           if (isChartStudioComboType(config.type)) {
             const { barMetricKeys, lineMetricKeys } = getChartStudioComboMetricGroups(config, axisModel);
@@ -7783,6 +8294,7 @@
           if (config.type === "pie" || config.type === "donut") return "饼图与环形图使用维度字段生成分类，并使用另一条轴上的第一项数值指标计算占比。";
           if (config.type === "metric-funnel") return "指标漏斗按轴内字段顺序将至少两项数量指标汇总为漏斗阶段；到店率、试驾率、锁单率等转化效率单独显示在漏斗右侧。";
           if (config.type === "category-funnel") return "分类漏斗使用维度字段生成阶段，并使用另一条轴上的第一项数值指标计算漏斗值。";
+          if (config.type === "waterfall") return `${direction}瀑布图使用第一项数量指标，将各分类作为增减项依次累计，并用连接线展示前后承接关系。`;
           if (config.type === "combo-bar-line") return `${direction}组合图：将指标拖入左侧柱状图区或右侧折线图区，可自由指定展示方式。`;
           if (config.type === "combo-stacked-line") return `${direction}组合图：左侧指标堆积为柱形，右侧指标使用第二数值轴绘制折线。`;
           if (config.type.includes("percent")) return `${direction}百分比堆积图会把每个分类内所选指标的合计折算为 100%。`;
@@ -7934,6 +8446,10 @@
             return "";
           }
           if (!axisModel.dimension) return "请把一个日期、大区、小区、渠道等维度字段拖入 X 轴或 Y 轴";
+          if (config.type === "waterfall") {
+            if (!metricKeys.length) return "瀑布图需要在维度字段的另一条轴放入至少 1 个数量指标，转化率不参与累计";
+            return "";
+          }
           if (isChartStudioComboType(config.type)) {
             const { barMetricKeys, lineMetricKeys } = getChartStudioComboMetricGroups(config, axisModel);
             if (!barMetricKeys.length || !lineMetricKeys.length) return "组合图需要在柱状图区和折线图区各放入至少 1 个数值指标";
@@ -8222,6 +8738,110 @@
             };
           };
 
+          if (config.type === "waterfall") {
+            const increaseColor = config.colors[3] || "#2563eb";
+            const decreaseColor = config.colors[0] || "#c3002f";
+            const connectorColor = "#b8c3cf";
+            let cumulative = 0;
+            const waterfallSteps = rows.map((row) => {
+              const delta = Number(row.values[primaryMetric] || 0);
+              const start = cumulative;
+              cumulative += delta;
+              return {
+                name: row.name,
+                delta,
+                start,
+                end: cumulative,
+                baseline: Math.min(start, cumulative),
+              };
+            });
+            const categories = waterfallSteps.map((item) => item.name);
+            const createStepData = (direction) => waterfallSteps.map((item) => {
+              const matches = direction === "increase" ? item.delta >= 0 : item.delta < 0;
+              return matches ? { value: Math.abs(item.delta), rawValue: item.delta, cumulative: item.end } : null;
+            });
+            const labelPosition = horizontal ? "right" : "top";
+            const valueFormatter = (params) => formatChartStudioMetricValue(primaryMetric, params.data?.rawValue ?? params.value);
+            const waterfallCategoryAxis = { ...categoryAxis, data: categories };
+            const waterfallValueAxis = {
+              ...createValueAxis("", false, [primaryMetric]),
+              axisLine: { show: true, lineStyle: { color: "#cbd5e0" } },
+              splitLine: { show: false },
+            };
+            chart.setOption({
+              ...common,
+              color: [increaseColor, decreaseColor],
+              tooltip: {
+                trigger: "axis",
+                axisPointer: { type: "shadow" },
+                formatter: (params) => {
+                  const visibleItem = params.find((item) => !["辅助", "连接线"].includes(item.seriesName) && item.data != null);
+                  if (!visibleItem) return "";
+                  const rawValue = visibleItem.data.rawValue;
+                  return [
+                    escapeHtml(visibleItem.axisValue),
+                    `${visibleItem.marker}${rawValue >= 0 ? "增加" : "减少"}：${formatChartStudioMetricValue(primaryMetric, rawValue)}`,
+                    `累计：${formatChartStudioMetricValue(primaryMetric, visibleItem.data.cumulative)}`,
+                  ].join("<br/>");
+                },
+              },
+              legend: { show: false },
+              grid: { left: horizontal ? 110 : 68, right: 42, top: 96, bottom: !horizontal && categories.length > 8 ? 92 : 54 },
+              xAxis: horizontal ? waterfallValueAxis : waterfallCategoryAxis,
+              yAxis: horizontal ? waterfallCategoryAxis : waterfallValueAxis,
+              series: [
+                {
+                  name: "辅助",
+                  type: "bar",
+                  stack: "waterfall",
+                  stackStrategy: "all",
+                  silent: true,
+                  tooltip: { show: false },
+                  itemStyle: { color: "transparent" },
+                  emphasis: { disabled: true },
+                  data: waterfallSteps.map((item) => item.baseline),
+                },
+                {
+                  name: "连接线",
+                  type: "line",
+                  step: "end",
+                  symbol: "none",
+                  silent: true,
+                  tooltip: { show: false },
+                  lineStyle: { color: connectorColor, width: 1 },
+                  emphasis: { disabled: true },
+                  z: 1,
+                  data: horizontal
+                    ? waterfallSteps.map((item, index) => [item.end, categories[index]])
+                    : waterfallSteps.map((item) => item.end),
+                },
+                {
+                  name: "增加",
+                  type: "bar",
+                  stack: "waterfall",
+                  stackStrategy: "all",
+                  barMaxWidth: 42,
+                  z: 2,
+                  itemStyle: { color: increaseColor },
+                  label: { show: true, position: labelPosition, color: "#4a5568", fontWeight: 700, formatter: valueFormatter },
+                  data: createStepData("increase"),
+                },
+                {
+                  name: "减少",
+                  type: "bar",
+                  stack: "waterfall",
+                  stackStrategy: "all",
+                  barMaxWidth: 42,
+                  z: 2,
+                  itemStyle: { color: decreaseColor },
+                  label: { show: true, position: labelPosition, color: "#4a5568", fontWeight: 700, formatter: valueFormatter },
+                  data: createStepData("decrease"),
+                },
+              ],
+            });
+            return;
+          }
+
           if (isChartStudioComboType(config.type)) {
             const { barMetricKeys, lineMetricKeys } = getChartStudioComboMetricGroups(config, axisModel);
             const barSeries = barMetricKeys.map((key) => ({
@@ -8433,6 +9053,12 @@
         }
 
         function renderChartStudioColorPicker(config) {
+          const colorOptions = config.type === "waterfall"
+            ? [
+                { index: 3, label: "增加" },
+                { index: 0, label: "减少" },
+              ]
+            : config.colors.map((_, index) => ({ index, label: `颜色 ${index + 1}` }));
           return `
             <details class="chart-toolbar-picker chart-color-picker">
               <summary>
@@ -8444,12 +9070,12 @@
                   <span class="chart-color-panel-title">图表元素颜色</span>
                   <button class="btn btn-ghost" type="button" data-action="reset-chart-colors" data-chart-id="${config.id}">恢复默认配色</button>
                 </div>
-                <span class="chart-color-panel-note">颜色依次应用到各指标系列、饼块或漏斗阶段。</span>
+                <span class="chart-color-panel-note">${config.type === "waterfall" ? "分别设置瀑布图的增加与减少颜色，柱间自动显示连接线。" : "颜色依次应用到各指标系列、饼块或漏斗阶段。"}</span>
                 <div class="chart-color-options">
-                  ${config.colors.map((color, index) => `
+                  ${colorOptions.map(({ index, label }) => `
                     <label class="chart-color-option">
-                      <span>颜色 ${index + 1}</span>
-                      <input type="color" value="${color}" data-chart-control="color" data-chart-color-index="${index}" aria-label="图表颜色 ${index + 1}" />
+                      <span>${label}</span>
+                      <input type="color" value="${config.colors[index]}" data-chart-control="color" data-chart-color-index="${index}" aria-label="${config.type === "waterfall" ? `瀑布图${label}颜色` : `图表${label}`}" />
                     </label>
                   `).join("")}
                 </div>
@@ -9879,7 +10505,7 @@
           const files = state.pendingUploadFiles;
           els.uploadModal.classList.toggle("is-open", isOpen);
           els.uploadModal.setAttribute("aria-hidden", String(!isOpen));
-          document.body.classList.toggle("is-upload-modal-open", isOpen || state.dealerFocus.scopeOpen);
+          document.body.classList.toggle("is-upload-modal-open", isOpen || state.dealerFocus.scopeOpen || state.costCalculator.pasteOpen);
           els.uploadDropZone.classList.toggle("is-disabled", isRunning);
           els.uploadDropZone.setAttribute("aria-disabled", String(isRunning));
           els.uploadModalClose.disabled = isRunning;
@@ -10021,6 +10647,8 @@
             els.areaChannelTableBody.innerHTML = getLoadingTableRow("正在解析渠道数据");
           } else if (state.view === "dealer-focus") {
             showLoading(els.dealerFocusTableMount, message);
+          } else if (state.view === "cost-calculator") {
+            showLoading(els.costCalculatorTableMount, message);
           } else if (state.view === "chart-studio") {
             els.chartStudioScopeCapsule.textContent = "正在加载";
             disposeChartStudioCharts();
@@ -10314,6 +10942,7 @@
           }
           setSelectedValues(els.compareModelSelect, getDefaultCompareModels());
           resetDealerFocus();
+          resetCostCalculator();
 
           updateMeta();
           if (!window.location.hash) {
@@ -10363,6 +10992,9 @@
           if (state.view === "dealer-focus") {
             renderDealerFocus();
           }
+          if (state.view === "cost-calculator") {
+            renderCostCalculator();
+          }
           if (state.view === "chart-studio") {
             renderChartStudio();
           }
@@ -10385,6 +11017,10 @@
             return;
           }
           if (state.view === "dealer-focus") {
+            finishRenderTask(taskId, startedAt);
+            return;
+          }
+          if (state.view === "cost-calculator") {
             finishRenderTask(taskId, startedAt);
             return;
           }
@@ -10543,6 +11179,45 @@
           });
           els.openDealerFocusScopeBtn.addEventListener("click", openDealerFocusScopeModal);
 
+          els.addCostPeriodBtn.addEventListener("click", addCostPeriod);
+          els.openCostFeeModalBtn.addEventListener("click", openCostFeeModal);
+          els.costCalculatorModelSelect.addEventListener("change", () => {
+            state.costCalculator.model = els.costCalculatorModelSelect.value || "全部";
+            renderCostCalculator();
+          });
+          els.costCalculatorSection.addEventListener("click", (event) => {
+            const methodButton = event.target.closest?.("[data-cost-method]");
+            if (methodButton instanceof HTMLElement) {
+              state.costCalculator.method = methodButton.dataset.costMethod || "CPL";
+              renderCostCalculator();
+              return;
+            }
+            const removeButton = event.target.closest?.("[data-cost-period-remove]");
+            if (removeButton instanceof HTMLElement) removeCostPeriod(removeButton.dataset.costPeriodRemove);
+          });
+          els.costCalculatorSection.addEventListener("input", (event) => {
+            const input = event.target.closest?.("[data-cost-fee-period][data-cost-fee-channel]");
+            if (!(input instanceof HTMLInputElement)) return;
+            const periodId = input.dataset.costFeePeriod;
+            const channel = input.dataset.costFeeChannel;
+            if (!state.costCalculator.fees[periodId] || !COST_CHANNELS.includes(channel)) return;
+            state.costCalculator.fees[periodId][channel] = input.value;
+            refreshCostChannelOutputs(channel);
+          });
+          els.costFeeModalClose.addEventListener("click", closeCostFeeModal);
+          els.costFeeModalCancel.addEventListener("click", closeCostFeeModal);
+          els.costFeeModal.addEventListener("click", (event) => {
+            if (event.target === els.costFeeModal) closeCostFeeModal();
+          });
+          els.costFeePeriodSelect.addEventListener("change", () => {
+            state.costCalculator.pastePeriodId = els.costFeePeriodSelect.value;
+          });
+          els.costFeePasteInput.addEventListener("input", () => {
+            state.costCalculator.pasteText = els.costFeePasteInput.value;
+            renderCostFeePastePreview();
+          });
+          els.applyCostFeesBtn.addEventListener("click", applyCostFees);
+
           els.dealerFocusScopeModal.addEventListener("click", (event) => {
             if (event.target === els.dealerFocusScopeModal) {
               closeDealerFocusScopeModal();
@@ -10682,6 +11357,8 @@
                 refreshChartStudioOnly();
               } else if (state.view === "dealer-focus") {
                 renderDealerFocus();
+              } else if (state.view === "cost-calculator") {
+                renderCostCalculator();
               } else {
                 refreshModelDrillOnly();
               }
@@ -10703,6 +11380,8 @@
               refreshChartStudioOnly();
             } else if (state.view === "dealer-focus") {
               renderDealerFocus();
+            } else if (state.view === "cost-calculator") {
+              renderCostCalculator();
             } else {
               refreshModelDrillOnly();
             }
@@ -10722,6 +11401,8 @@
             } else if (state.view === "chart-studio") {
               renderAll();
             } else if (state.view === "dealer-focus") {
+              renderAll();
+            } else if (state.view === "cost-calculator") {
               renderAll();
             } else {
               refreshModelDrillOnly({ matrix: true, updateRouteVisibility: true });
@@ -11067,6 +11748,8 @@
                 refreshAreaOnly();
               } else if (state.view === "chart-studio") {
                 refreshChartStudioOnly();
+              } else if (state.view === "dealer-focus" || state.view === "cost-calculator") {
+                renderAll();
               } else {
                 refreshModelDrillOnly();
               }
@@ -11275,6 +11958,10 @@
 
           window.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") return;
+            if (state.costCalculator.pasteOpen) {
+              closeCostFeeModal();
+              return;
+            }
             if (state.dealerFocus.scopeOpen) {
               closeDealerFocusScopeModal();
               return;
@@ -11297,6 +11984,6 @@
         bootDataset();
       })();
     </script>
-    <script src="ui-optimized.js?v=20260914-2"></script>
+    <script src="ui-optimized.js?v=20260924-1"></script>
   </body>
 </html>

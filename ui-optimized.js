@@ -4,6 +4,7 @@
   const modelLinks = [...document.querySelectorAll("[data-ui-model-target]")];
   const areaRouteLink = document.querySelector('[data-ui-route="area"]');
   const dealerFocusRouteLink = document.querySelector('[data-ui-route="dealer-focus"]');
+  const costCalculatorRouteLink = document.querySelector('[data-ui-route="cost-calculator"]');
   const chartStudioRouteLink = document.querySelector('[data-ui-route="chart-studio"]');
   const modelRouteLink = document.querySelector('[data-ui-route="model"]');
   const homeRouteLinks = [...document.querySelectorAll('[data-ui-route="home"]')];
@@ -105,6 +106,7 @@
     const isModelView = route.view === "model-drill";
     const isAreaView = route.view === "area";
     const isDealerFocusView = route.view === "dealer-focus";
+    const isCostCalculatorView = route.view === "cost-calculator";
     const isChartStudioView = route.view === "chart-studio";
     homeNav.hidden = isModelView;
     modelNav.hidden = !isModelView;
@@ -112,6 +114,8 @@
     areaRouteLink?.removeAttribute("aria-current");
     dealerFocusRouteLink?.classList.remove("is-active");
     dealerFocusRouteLink?.removeAttribute("aria-current");
+    costCalculatorRouteLink?.classList.remove("is-active");
+    costCalculatorRouteLink?.removeAttribute("aria-current");
     chartStudioRouteLink?.classList.remove("is-active");
     chartStudioRouteLink?.removeAttribute("aria-current");
     setActive(homeRouteLinks, null);
@@ -146,6 +150,16 @@
       return;
     }
 
+    if (isCostCalculatorView) {
+      brandName.textContent = "成本计算器";
+      brandSub.textContent = "COST CALCULATOR";
+      sidebarLabel.textContent = "渠道成本工作台";
+      if (skipLink) skipLink.href = "#costCalculatorSection";
+      costCalculatorRouteLink?.classList.add("is-active");
+      costCalculatorRouteLink?.setAttribute("aria-current", "page");
+      return;
+    }
+
     if (isChartStudioView) {
       brandName.textContent = "图表生成";
       brandSub.textContent = "CHART STUDIO";
@@ -171,6 +185,11 @@
   dealerFocusRouteLink?.addEventListener("click", (event) => {
     event.preventDefault();
     navigateToHash("#dealer-focus");
+  });
+
+  costCalculatorRouteLink?.addEventListener("click", (event) => {
+    event.preventDefault();
+    navigateToHash("#cost-calculator");
   });
 
   chartStudioRouteLink?.addEventListener("click", (event) => {
