@@ -199,8 +199,8 @@ async function verifyCostCalculator(page) {
   assert.equal(await page.locator("#costCalculatorModelSelect").inputValue(), "全部");
   assert.deepEqual(
     await page.locator("#costCalculatorTableMount tbody .cost-table-channel").allTextContents(),
-    ["R3", "R4", "R5", "R6", "R8", "R10", "R11"],
-    "成本计算器只应展示七个有费用的渠道"
+    ["R3", "R4", "R5", "R6", "R8车巡展", "R8商超", "R10", "R11"],
+    "成本计算器应拆分展示 R8 车巡展和商超"
   );
   assert.equal(await page.locator("#costMethodList [data-cost-method]").count(), 6);
   await page.locator('#costMethodList [data-cost-method="CPT"]').click();
@@ -234,18 +234,23 @@ async function verifyCostCalculator(page) {
     "R4\t44,214,168",
     "R5\t4,260,000",
     "R6\t27,712,844",
-    "R8\t29,901,822",
+    "R8车巡展\t19,901,822",
+    "R8商超\t10,000,000",
     "\t6,800,000",
     "R10\t55,956,038",
     "R11\t5,776,374",
     "R1\t99,999",
   ].join("\n"));
-  assert.match(await page.locator("#costFeePastePreview").innerText(), /识别 7 个成本渠道/);
+  assert.match(await page.locator("#costFeePastePreview").innerText(), /识别 8 个成本渠道/);
   assert.match(await page.locator("#costFeePastePreview").innerText(), /已忽略 2 行/);
   await page.locator("#applyCostFeesBtn").click();
   await page.locator("#costFeeModal").waitFor({ state: "hidden" });
   const r3Row = page.locator("#costCalculatorTableMount tbody tr").filter({ has: page.locator("th", { hasText: /^R3$/ }) });
   assert.equal(await r3Row.locator(".cost-fee-input").last().inputValue(), "2777483");
+  const r8ExhibitionRow = page.locator("#costCalculatorTableMount tbody tr").filter({ has: page.locator("th", { hasText: /^R8车巡展$/ }) });
+  const r8MallRow = page.locator("#costCalculatorTableMount tbody tr").filter({ has: page.locator("th", { hasText: /^R8商超$/ }) });
+  assert.equal(await r8ExhibitionRow.locator(".cost-fee-input").last().inputValue(), "19901822");
+  assert.equal(await r8MallRow.locator(".cost-fee-input").last().inputValue(), "10000000");
   const performance = Number((await r3Row.locator(".cost-performance strong").last().innerText()).replace(/,/g, ""));
   if (performance > 0) assert.match(await r3Row.locator(".cost-result strong").last().innerText(), /^¥/);
   console.log("成本计算器渠道范围、CPT、时间对比及 Excel 费用粘贴验证通过。");

@@ -3293,7 +3293,7 @@
         <div class="section-head">
           <div>
             <h2 class="section-title">成本计算器</h2>
-            <p class="section-note">默认统计除探陆外全车系；仅展示 R3、R4、R5、R6、R8、R10、R11，并按手填费用计算渠道成本。</p>
+            <p class="section-note">默认统计除探陆外全车系；仅展示 R3、R4、R5、R6、R8车巡展、R8商超、R10、R11，并按手填费用计算渠道成本。</p>
           </div>
           <div class="section-actions cost-calculator-actions">
             <button class="btn btn-subtle" data-action="go-home">返回首页</button>
@@ -3454,7 +3454,7 @@
             <label for="costFeePasteInput">Excel 费用数据</label>
             <textarea id="costFeePasteInput" placeholder="示例：&#10;R3&#9;2,777,483&#10;R4&#9;44,214,168&#10;R5&#9;4,260,000"></textarea>
           </div>
-          <div class="cost-fee-preview" id="costFeePastePreview">等待粘贴。仅读取 R3、R4、R5、R6、R8、R10、R11。</div>
+          <div class="cost-fee-preview" id="costFeePastePreview">等待粘贴。仅读取 R3、R4、R5、R6、R8车巡展、R8商超、R10、R11。</div>
         </div>
         <div class="upload-modal-foot">
           <button class="btn btn-ghost" id="costFeeModalCancel" type="button">取消</button>
@@ -3560,7 +3560,7 @@
           storeToLockRate: { label: "到店-锁单率", numerator: "lockOrder", denominator: "newStoreVisit", format: "percent" },
         };
         const CHART_STUDIO_METRICS = { ...METRICS, ...CHART_STUDIO_CALCULATED_METRICS };
-        const COST_CHANNELS = ["R3", "R4", "R5", "R6", "R8", "R10", "R11"];
+        const COST_CHANNELS = ["R3", "R4", "R5", "R6", "R8车巡展", "R8商超", "R10", "R11"];
         const COST_METHODS = {
           CPL: { label: "单个线索成本", metricKey: "newLead" },
           CPQL: { label: "单个有效线索成本", metricKey: "validLead" },
@@ -7858,7 +7858,10 @@
 
         function normalizeCostChannel(value) {
           const normalized = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
-          const match = normalized.match(/^R(10|11|3|4|5|6|8)(?:\D|$)/);
+          if (normalized.startsWith("R8商超")) return "R8商超";
+          if (normalized.startsWith("R8车巡展") || normalized.startsWith("R8巡展")) return "R8车巡展";
+          const match = normalized.match(/^R(10|11|3|4|5|6)(?:\D|$)/);
+          if (/^R8(?:\D|$)/.test(normalized)) return "R8车巡展";
           return match ? `R${match[1]}` : "";
         }
 
@@ -8024,7 +8027,7 @@
 
         function renderCostFeePastePreview() {
           if (!state.costCalculator.pasteText.trim()) {
-            els.costFeePastePreview.textContent = "等待粘贴。仅读取 R3、R4、R5、R6、R8、R10、R11。";
+            els.costFeePastePreview.textContent = "等待粘贴。仅读取 R3、R4、R5、R6、R8车巡展、R8商超、R10、R11。";
             els.applyCostFeesBtn.disabled = true;
             return;
           }
