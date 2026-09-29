@@ -3149,7 +3149,7 @@
               </div>
               <div class="compare-block">
                 <label>对比口径</label>
-                <div class="capsule">车型 / 日期 / 大区 / 小区 / 渠道</div>
+                <div class="capsule">同/跨车型 · 不同周期 · 同筛选口径</div>
               </div>
             </div>
           </div>
@@ -4275,8 +4275,12 @@
           if ([...els.modelSelect.options].some((option) => option.value === nextModel)) {
             els.modelSelect.value = nextModel;
           }
-          const selectedModels = getSelectedValues(els.compareModelSelect).filter((item) => item !== nextModel);
-          setSelectedValues(els.compareModelSelect, selectedModels.length ? selectedModels : getDefaultCompareModels());
+          const selectedModels = getSelectedValues(els.compareModelSelect);
+          if (resetDependentDrill || !selectedModels.length) {
+            setSelectedValues(els.compareModelSelect, nextModel === "全部" ? getDefaultCompareModels() : [nextModel]);
+          } else {
+            updateCompareModelDropdownSummary();
+          }
         }
 
         function getFocusedModel() {
@@ -5313,8 +5317,16 @@
         }
 
         function updateCompareModelDropdownSummary() {
-          const count = getSelectedValues(els.compareModelSelect).length;
-          els.compareModelDropdownSummary.textContent = count ? `已选 ${count} 个车型` : "请选择对比车型";
+          const selectedModels = getSelectedValues(els.compareModelSelect);
+          if (selectedModels.length === 1) {
+            const model = selectedModels[0];
+            const suffix = model === (els.modelSelect.value || "全部") ? "（同车型）" : "";
+            els.compareModelDropdownSummary.textContent = `${formatDimensionText("model", model)}${suffix}`;
+            return;
+          }
+          els.compareModelDropdownSummary.textContent = selectedModels.length
+            ? `已选 ${selectedModels.length} 个车型`
+            : "请选择对比车型";
         }
 
         function setSelectedValues(select, values) {
@@ -5341,7 +5353,8 @@
 
         function getDefaultCompareModels() {
           const mainModel = els.modelSelect.value || "全部";
-          const options = getVisibleDimensionValues(state.dataset.models).filter((item) => item !== mainModel);
+          const options = getVisibleDimensionValues(state.dataset.models).filter((item) => item && item !== "全部");
+          if (mainModel !== "全部" && options.includes(mainModel)) return [mainModel];
           return options.slice(0, 3);
         }
 
@@ -5377,12 +5390,12 @@
         function getCompareFilters() {
           if (!state.compareEnabled) return null;
           const base = getMainFilters();
-          const selectedModels = getSelectedValues(els.compareModelSelect).filter((model) => model !== base.model);
+          const selectedModels = getSelectedValues(els.compareModelSelect);
           return {
             ...base,
             startDate: els.compareStartDate.value,
             endDate: els.compareEndDate.value,
-            model: selectedModels.length ? selectedModels : "全部",
+            model: selectedModels.length ? selectedModels : base.model,
           };
         }
 
@@ -5622,14 +5635,20 @@
           return activeStage?.name || "当前指标";
         }
 
-        function getOverviewModelNames() {
+        function getOverviewModelScopes() {
           if (state.compareEnabled) {
             const mainModel = els.modelSelect.value || "全部";
-            const selectedModels = getSelectedValues(els.compareModelSelect).filter((model) => model !== mainModel);
-            if (mainModel !== "全部") return [mainModel, ...selectedModels];
-            if (selectedModels.length) return selectedModels;
+            const selectedModels = getSelectedValues(els.compareModelSelect);
+            const compareModels = selectedModels.length ? selectedModels : [mainModel];
+            if (mainModel === "全部") {
+              return compareModels.map((name) => ({ name, isCompareModel: true }));
+            }
+            return [
+              { name: mainModel, isCompareModel: false },
+              ...compareModels.map((name) => ({ name, isCompareModel: true })),
+            ];
           }
-          return getDefaultOverviewModels();
+          return getDefaultOverviewModels().map((name) => ({ name, isCompareModel: false }));
         }
 
         function getStageValueById(stageRows, stageId) {
@@ -6546,13 +6565,7 @@
           const focusVisible = state.view === "model-drill" || isCustomMainRange();
           const mainFilters = getMainFilters();
           const compareFilters = getCompareFilters();
-          const overviewModels = includeOverview ? getOverviewModelNames().map((name) => {
-            const isCompareModel =
-              state.compareEnabled &&
-              mainFilters.model !== "全部" &&
-              name !== mainFilters.model &&
-              compareFilters?.startDate &&
-              compareFilters?.endDate;
+          const overviewModels = includeOverview ? getOverviewModelScopes().map(({ name, isCompareModel }) => {
             const baseFilters = isCompareModel
               ? { ...compareFilters, model: name }
               : state.compareEnabled || state.overviewMode === "main"
@@ -6749,8 +6762,14 @@
 
         function updateOverviewCapsule() {
           if (state.compareEnabled) {
-            const selectedModels = getOverviewModelNames();
-            els.overviewCapsule.textContent = `对比车型：${selectedModels.length} 个`;
+            const mainModel = els.modelSelect.value || "全部";
+            const modelLabel = mainModel === "全部" ? "全车型" : formatDimensionText("model", mainModel);
+            const selectedModels = getSelectedValues(els.compareModelSelect);
+            const effectiveModels = selectedModels.length ? selectedModels : [mainModel];
+            const compareLabel = effectiveModels.length === 1
+              ? formatDimensionText("model", effectiveModels[0])
+              : `${effectiveModels.length} 个车型`;
+            els.overviewCapsule.textContent = `${modelLabel} vs ${compareLabel}`;
             return;
           }
           els.overviewCapsule.textContent =
@@ -6788,6 +6807,7 @@
               <div class="overview-card-head">
                 <div>
                   <div class="model-name">${modelData.name}</div>
+                  <div class="model-lock">${modelData.isCompareModel ? "对比周期" : "主分析周期"} · ${modelData.dateRange}</div>
                 </div>
                 <div class="overview-card-total">
                   <div class="model-lock">总转化 ${formatPercent(calcRate(modelData.summary.lockOrder, modelData.summary.newLead))}</div>
@@ -6800,7 +6820,7 @@
               ${buildCostMiniGrid(modelData.costSummary, activeCostMetric)}
               <div class="overview-foot">
                 <span>${activeStage?.name || "当前阶段"} ${formatNumber(activeStage?.value || 0)}</span>
-                <span>${modelData.isCompareModel ? "对比" : "主分析"}</span>
+                <span>${modelData.isCompareModel ? "对比周期" : "主分析周期"}</span>
               </div>
             </article>
           `;
@@ -9385,8 +9405,15 @@
           renderChartStudioCanvas(config);
         }
 
-        function buildMetricCard(stage, compareStage, costSummary, activeCostMetric) {
-          const change = compareStage ? calcChange(stage.value, compareStage.value) : null;
+        function buildMetricCard(stage, compareStage, costSummary, activeCostMetric, comparisonRequested = false) {
+          const change = compareStage && compareStage.value ? calcChange(stage.value, compareStage.value) : null;
+          const comparisonText = !comparisonRequested
+            ? stage.helper
+            : !compareStage
+              ? "对比期无数据"
+              : compareStage.value
+                ? `环比 ${formatSignedPercent(change)}`
+                : "环比 --";
           const selected = state.drill.stageId === stage.id;
           const costMetric = selected ? activeCostMetric || getCostMetricForStage(stage) : null;
           const costMarkup = costMetric
@@ -9406,7 +9433,7 @@
               <div class="metric-card-value">${formatNumber(stage.value)}</div>
               <div class="metric-card-sub">
                 <span>${stage === getEnabledStages()[0] ? "入口" : formatPercent(stage.rate)}</span>
-                <span class="${change == null ? "" : trendClass(change)}">${change == null ? stage.helper : `环比 ${formatSignedPercent(change)}`}</span>
+                <span class="${change == null ? "" : trendClass(change)}">${comparisonText}</span>
               </div>
               ${costMarkup}
             </button>
@@ -9463,13 +9490,13 @@
                 ${currentStages
                   .map((stage) => {
                     const target = getStageValueById(compareStages, stage.id);
-                    const change = calcChange(stage.value, target?.value || 0);
+                    const change = target?.value ? calcChange(stage.value, target.value) : null;
                     const diff = stage.value - (target?.value || 0);
                     return `
                       <div class="delta-item">
                         <div class="delta-name">${stage.name}</div>
-                        <div class="delta-value ${trendClass(change)}">${formatSignedPercent(change)}</div>
-                        <div class="delta-note">差值 ${formatSignedNumber(diff)}</div>
+                        <div class="delta-value ${change == null ? "trend-flat" : trendClass(change)}">${change == null ? "--" : formatSignedPercent(change)}</div>
+                        <div class="delta-note">${change == null ? "基期为 0" : `差值 ${formatSignedNumber(diff)}`}</div>
                       </div>
                     `;
                   })
@@ -9561,7 +9588,7 @@
             return;
           }
 
-          const compareVisible = state.compareEnabled && viewModel.compareStages.length > 0;
+          const compareVisible = state.compareEnabled && viewModel.drilledCompareRows.length > 0;
           const mainLabel = formatAnalysisRange(viewModel.mainFilters.startDate, viewModel.mainFilters.endDate);
           const focusedModel = getFocusedModel();
           const focusedModelLabel = focusedModel === "全部" ? "全车型" : formatDimensionText("model", focusedModel);
@@ -9615,18 +9642,26 @@
           const metricRail = document.getElementById("focusMetricRail");
           metricRail.style.setProperty("--metric-count", Math.max(viewModel.currentStages.length, 1));
           metricRail.innerHTML = viewModel.currentStages
-            .map((stage) => buildMetricCard(stage, getStageValueById(viewModel.compareStages, stage.id), viewModel.currentCostSummary, activeCostMetric))
+            .map((stage) => buildMetricCard(
+              stage,
+              compareVisible ? getStageValueById(viewModel.compareStages, stage.id) : null,
+              viewModel.currentCostSummary,
+              activeCostMetric,
+              state.compareEnabled
+            ))
             .join("");
           const funnelShell = document.getElementById("focusFunnelShell");
           funnelShell.classList.toggle("has-compare", compareVisible);
           funnelShell.innerHTML = `
             ${buildFunnelColumn(`${focusedModelLabel} 漏斗`, mainLabel, viewModel.currentStages, viewModel.compareStages, currentContextTags)}
-            ${compareVisible ? buildFunnelColumn("对比车型漏斗", compareDateLabel, viewModel.compareStages, viewModel.currentStages, compareContextTags) : ""}
+            ${compareVisible ? buildFunnelColumn("对比组漏斗", compareDateLabel, viewModel.compareStages, viewModel.currentStages, compareContextTags) : ""}
             ${compareVisible ? buildDeltaColumn(viewModel.currentStages, viewModel.compareStages) : ""}
           `;
 
           const activeStageName = viewModel.activeStage?.name || "当前指标";
-          document.getElementById("trendChartTitle").textContent = `${focusedModelLabel} · ${activeStageName}日趋势`;
+          document.getElementById("trendChartTitle").textContent = compareVisible && viewModel.compareTrendSeries.length
+            ? `${focusedModelLabel} · ${activeStageName}趋势对比`
+            : `${focusedModelLabel} · ${activeStageName}日趋势`;
           document.getElementById("conversionChartTitle").textContent = compareVisible
             ? `${focusedModelLabel} · ${activeStageName}区间对比`
             : `${focusedModelLabel} · 漏斗阶段量级`;
@@ -9683,38 +9718,97 @@
           chart.off("click");
           chart.clear();
           const activeStage = viewModel.activeStage || viewModel.currentStages[0];
+          const hasCompare = Boolean(
+            activeStage &&
+            state.compareEnabled &&
+            viewModel.drilledCompareRows.length &&
+            viewModel.compareTrendSeries.length
+          );
+          const pointCount = hasCompare
+            ? Math.max(viewModel.trendSeries.length, viewModel.compareTrendSeries.length)
+            : viewModel.trendSeries.length;
+          const datePairs = Array.from({ length: pointCount }, (_, index) => ({
+            currentDate: viewModel.trendSeries[index]?.date || "",
+            compareDate: hasCompare ? viewModel.compareTrendSeries[index]?.date || "" : "",
+          }));
+          const hasDifferentDateRanges = hasCompare && datePairs.some((item) => item.currentDate !== item.compareDate);
+          const buildTrendData = (source, isCompare = false) => Array.from({ length: pointCount }, (_, index) => {
+            const item = source[index];
+            return {
+              value: item ? getStageValueById(item.stageRows, activeStage.id)?.value || 0 : null,
+              rawDate: item?.date || "",
+              stageId: activeStage.id,
+              isCompare,
+            };
+          });
+          const series = activeStage
+            ? [{
+                id: `${activeStage.id}-current`,
+                name: hasCompare ? "当前区间" : activeStage.name,
+                type: "line",
+                smooth: true,
+                symbol: "circle",
+                symbolSize: 8,
+                connectNulls: false,
+                itemStyle: { color: "#c3002f" },
+                lineStyle: { color: "#c3002f", width: 3, type: "solid" },
+                data: buildTrendData(viewModel.trendSeries),
+              }]
+            : [];
+          if (activeStage && hasCompare) {
+            series.push({
+              id: `${activeStage.id}-compare`,
+              name: "对比区间",
+              type: "line",
+              smooth: true,
+              symbol: "diamond",
+              symbolSize: 8,
+              connectNulls: false,
+              itemStyle: { color: "#405a70" },
+              lineStyle: { color: "#405a70", width: 3, type: "dashed" },
+              data: buildTrendData(viewModel.compareTrendSeries, true),
+            });
+          }
           chart.setOption({
             textStyle: { fontFamily: UI_FONT_FAMILY },
-            color: ["#c3002f", "#111111", "#ef6689", "#424750", "#8f96a3", "#d07b1d"],
-            tooltip: { trigger: "axis" },
+            color: ["#c3002f", "#405a70"],
+            tooltip: {
+              trigger: "axis",
+              formatter: (params) => params
+                .filter((item) => item.data?.rawDate)
+                .map((item) => `${item.marker}${item.seriesName} · ${item.data.rawDate}：${formatNumber(item.data.value)}`)
+                .join("<br/>") || "-",
+            },
             legend: { top: 0, textStyle: { color: "#666a73" } },
-            grid: { left: 44, right: 18, top: 42, bottom: 32 },
+            grid: { left: 44, right: 18, top: 42, bottom: hasDifferentDateRanges ? 52 : 32 },
             xAxis: {
               type: "category",
-              data: viewModel.trendSeries.map((item) => item.date),
-              axisLabel: { color: "#666a73" },
+              data: datePairs.map((_, index) => String(index + 1)),
+              axisLabel: {
+                color: "#666a73",
+                lineHeight: 17,
+                formatter: (_value, index) => {
+                  const pair = datePairs[index] || {};
+                  if (!hasDifferentDateRanges) return pair.currentDate || pair.compareDate || "-";
+                  const currentLabel = pair.currentDate ? pair.currentDate.slice(5) : "--";
+                  const compareLabel = pair.compareDate ? pair.compareDate.slice(5) : "--";
+                  return `{current|${currentLabel}}\n{compare|${compareLabel}}`;
+                },
+                rich: {
+                  current: { color: "#c3002f", fontWeight: 700 },
+                  compare: { color: "#405a70", fontWeight: 700 },
+                },
+              },
             },
             yAxis: {
               type: "value",
               axisLabel: { color: "#666a73" },
               splitLine: { lineStyle: { color: "#eceef2" } },
             },
-            series: activeStage
-              ? [{
-              id: activeStage.id,
-              name: activeStage.name,
-              type: "line",
-              smooth: true,
-              symbolSize: 8,
-              data: viewModel.trendSeries.map((item) => ({
-                value: getStageValueById(item.stageRows, activeStage.id)?.value || 0,
-                rawDate: item.date,
-                stageId: activeStage.id,
-              })),
-            }]
-              : [],
+            series,
           });
           chart.on("click", (params) => {
+            if (!params.data?.rawDate || params.data.isCompare) return;
             const nextDate = params.data.rawDate;
             const nextStageId = params.data.stageId;
             if (state.drill.date === nextDate && state.drill.stageId === nextStageId) return;
@@ -11113,8 +11207,10 @@
                 state.channelMatrixEndDate = "";
               }
               if (element === els.modelSelect) {
-                const nextSelected = getSelectedValues(els.compareModelSelect).filter((model) => model !== els.modelSelect.value);
-                setSelectedValues(els.compareModelSelect, nextSelected.length ? nextSelected : getDefaultCompareModels());
+                setSelectedValues(
+                  els.compareModelSelect,
+                  els.modelSelect.value === "全部" ? getDefaultCompareModels() : [els.modelSelect.value]
+                );
                 if (state.view === "model-drill") {
                   setRoute("model-drill", { model: els.modelSelect.value || "全部" });
                   return;

@@ -256,6 +256,152 @@ async function verifyCostCalculator(page) {
   console.log("成本计算器渠道范围、CPT、时间对比及 Excel 费用粘贴验证通过。");
 }
 
+async function verifyComparisonTrendStates(page) {
+  const original = await page.evaluate(() => ({
+    startDate: document.querySelector("#startDate")?.value || "",
+    endDate: document.querySelector("#endDate")?.value || "",
+    compareStartDate: document.querySelector("#compareStartDate")?.value || "",
+    compareEndDate: document.querySelector("#compareEndDate")?.value || "",
+    dateMin: document.querySelector("#startDate")?.min || "",
+    dateMax: document.querySelector("#endDate")?.max || "",
+  }));
+  const addIsoDays = (value, amount) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + amount);
+    return date.toISOString().slice(0, 10);
+  };
+  if (!original.dateMin || !original.dateMax || original.dateMin >= original.dateMax) {
+    assert.ok(await page.locator("#toggleCompareBtn").isDisabled(), "无可用日级日期时不应开放双周期对比");
+    console.log("上传数据无多个日级日期，已跳过车型双区间趋势验证。");
+    return;
+  }
+  const currentEndDate = addIsoDays(original.dateMax, -1);
+  const compareStartDate = addIsoDays(original.dateMin, 1);
+  await page.evaluate(({ startDate, endDate }) => {
+    document.querySelector("#startDate").value = startDate;
+    const endInput = document.querySelector("#endDate");
+    endInput.value = endDate;
+    endInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { startDate: original.dateMin, endDate: currentEndDate });
+  await page.waitForFunction(() => !document.querySelector("#toggleCompareBtn")?.disabled);
+  await page.locator("#toggleCompareBtn").click();
+  assert.equal(await page.locator("#compareModelDropdownSummary").innerText(), "N7（同车型）", "默认应允许主车型与自身对比");
+  assert.ok(await page.locator('#compareModelSelect input[value="N7"]').isChecked(), "N7 应作为默认对比车型");
+  assert.ok(await page.locator('#compareModelSelect input[type="checkbox"]').count() > 1, "对比车型应保留其他车型选项");
+  await page.evaluate(({ startDate, endDate }) => {
+    document.querySelector("#compareStartDate").value = startDate;
+    const endInput = document.querySelector("#compareEndDate");
+    endInput.value = endDate;
+    endInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { startDate: original.dateMin, endDate: currentEndDate });
+  await page.waitForFunction((expectedDate) => {
+    const chart = window.echarts?.getInstanceByDom(document.querySelector("#trendChart"));
+    const series = chart?.getOption()?.series || [];
+    return series.length === 2 && series[1]?.data?.some((item) => item.rawDate === expectedDate);
+  }, original.dateMin);
+  const samePeriodSeries = await page.locator("#trendChart").evaluate((element) =>
+    window.echarts.getInstanceByDom(element).getOption().series.map((series) =>
+      series.data.map((item) => item.value)
+    )
+  );
+  assert.deepEqual(samePeriodSeries[1], samePeriodSeries[0], "同一车型使用相同周期时两条趋势应完全一致");
+
+  await page.evaluate(() => {
+    const n7 = document.querySelector('#compareModelSelect input[value="N7"]');
+    const n6 = document.querySelector('#compareModelSelect input[value="N6"]');
+    n7.checked = false;
+    n6.checked = true;
+    n6.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction((currentValues) => {
+    const chart = window.echarts?.getInstanceByDom(document.querySelector("#trendChart"));
+    const compareValues = chart?.getOption()?.series?.[1]?.data?.map((item) => item.value) || [];
+    return compareValues.length > 0 && JSON.stringify(compareValues) !== JSON.stringify(currentValues);
+  }, samePeriodSeries[0]);
+  assert.equal(await page.locator("#compareModelDropdownSummary").innerText(), "N6", "应允许切换到其他车型对比");
+
+  await page.evaluate(() => {
+    const n7 = document.querySelector('#compareModelSelect input[value="N7"]');
+    const n6 = document.querySelector('#compareModelSelect input[value="N6"]');
+    n6.checked = false;
+    n7.checked = true;
+    n7.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction((currentValues) => {
+    const chart = window.echarts?.getInstanceByDom(document.querySelector("#trendChart"));
+    const compareValues = chart?.getOption()?.series?.[1]?.data?.map((item) => item.value) || [];
+    return JSON.stringify(compareValues) === JSON.stringify(currentValues);
+  }, samePeriodSeries[0]);
+
+  await page.evaluate(({ startDate, endDate }) => {
+    document.querySelector("#compareStartDate").value = startDate;
+    const endInput = document.querySelector("#compareEndDate");
+    endInput.value = endDate;
+    endInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { startDate: compareStartDate, endDate: original.dateMax });
+  await page.waitForFunction((expectedDate) => {
+    const chart = window.echarts?.getInstanceByDom(document.querySelector("#trendChart"));
+    const series = chart?.getOption()?.series || [];
+    const firstCompareDate = series[1]?.data?.find((item) => item.rawDate)?.rawDate || "";
+    return series.length === 2 && firstCompareDate === expectedDate;
+  }, compareStartDate);
+  const trendResult = await page.locator("#trendChart").evaluate((element) => {
+    const option = window.echarts.getInstanceByDom(element).getOption();
+    const currentSeries = option.series[0];
+    const compareSeries = option.series[1];
+    const formatter = option.xAxis[0].axisLabel.formatter;
+    return {
+      title: document.querySelector("#trendChartTitle")?.textContent || "",
+      seriesNames: option.series.map((series) => series.name),
+      currentColor: currentSeries.lineStyle.color,
+      compareColor: compareSeries.lineStyle.color,
+      currentLineType: currentSeries.lineStyle.type,
+      compareLineType: compareSeries.lineStyle.type,
+      currentDates: currentSeries.data.map((item) => item.rawDate).filter(Boolean),
+      compareDates: compareSeries.data.map((item) => item.rawDate).filter(Boolean),
+      currentPointCount: currentSeries.data.length,
+      comparePointCount: compareSeries.data.length,
+      axisPointCount: option.xAxis[0].data.length,
+      firstAxisLabel: typeof formatter === "function" ? formatter(option.xAxis[0].data[0], 0) : "",
+    };
+  });
+  assert.match(trendResult.title, /趋势对比$/);
+  assert.deepEqual(trendResult.seriesNames, ["当前区间", "对比区间"]);
+  assert.equal(trendResult.currentColor, "#c3002f");
+  assert.equal(trendResult.compareColor, "#405a70");
+  assert.equal(trendResult.currentLineType, "solid");
+  assert.equal(trendResult.compareLineType, "dashed");
+  assert.ok(trendResult.currentDates.length && trendResult.compareDates.length, "当前区间和对比区间都应生成趋势点");
+  assert.notEqual(trendResult.currentDates[0], trendResult.compareDates[0], "两个不同日期区间应按相对位置对齐");
+  assert.equal(trendResult.currentPointCount, trendResult.axisPointCount);
+  assert.equal(trendResult.comparePointCount, trendResult.axisPointCount);
+  assert.match(trendResult.firstAxisLabel, /\n/, "不同日期区间的 X 轴应使用双行日期标签");
+
+  await page.locator("#compareStartDate").evaluate((input) => { input.value = "1900-01-01"; });
+  await page.locator("#compareEndDate").evaluate((input) => {
+    input.value = "1900-01-01";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
+  assert.ok(
+    (await page.locator("#focusMetricRail .metric-card-sub span:last-child").allTextContents()).every((text) => text === "对比期无数据"),
+    "对比范围没有记录时，指标卡应明确显示无对比数据"
+  );
+  assert.equal(await page.locator("#focusMetricRail").getByText(/环比 \+100\.0%/).count(), 0, "空对比范围不应显示 +100.0%");
+  assert.ok(!(await page.locator("#focusFunnelShell").evaluate((element) => element.classList.contains("has-compare"))), "空对比漏斗不应展示");
+
+  await page.locator("#toggleCompareBtn").click();
+  await page.locator("#startDate").fill(original.startDate);
+  await page.locator("#endDate").fill(original.endDate);
+  await page.evaluate(({ compareStartDate, compareEndDate }) => {
+    document.querySelector("#compareStartDate").value = compareStartDate;
+    document.querySelector("#compareEndDate").value = compareEndDate;
+  }, original);
+  await page.locator("#endDate").dispatchEvent("change");
+  await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
+  console.log("车型分析同车型/跨车型双区间趋势与空对比范围展示验证通过。");
+}
+
 async function main() {
   const uploadFiles = process.argv.slice(2).map((filePath) => path.resolve(filePath));
   uploadFiles.forEach((filePath) => assert.ok(fs.existsSync(filePath), `文件不存在：${filePath}`));
@@ -309,6 +455,7 @@ async function main() {
     assert.match(await page.locator("#drillViewTitle").innerText(), /^N7 车型分析$/);
     assert.match(await page.locator("#uiSidebarBrandName").innerText(), /^N7 车型分析$/);
     assert.ok(await readMetricValue(page) > 0, "N7 指标应大于 0");
+    await verifyComparisonTrendStates(page);
 
     await page.locator("#modelSelect").selectOption("N6");
     await page.waitForURL(/#model-drill\?model=N6$/);
@@ -318,6 +465,8 @@ async function main() {
     );
 
     assert.equal(await page.locator("#modelSelect").inputValue(), "N6");
+    assert.equal(await page.locator("#compareModelDropdownSummary").innerText(), "N6（同车型）");
+    assert.ok(await page.locator('#compareModelSelect input[value="N6"]').isChecked());
     assert.match(await page.locator("#uiSidebarBrandName").innerText(), /^N6 车型分析$/);
     assert.ok(await readMetricValue(page) > 0, "切换到 N6 后指标不应归零");
     assert.match(await page.locator("#analysisCapsule").innerText(), /^N6 ·/);
