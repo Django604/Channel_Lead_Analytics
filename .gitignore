@@ -11,6 +11,7 @@
 !/scripts/
 /scripts/*
 !/scripts/verify-model-focus.js
+!/scripts/verify-chart-categories.js
 !/图标库/
 
 /图标库/*

@@ -1685,14 +1685,14 @@
         z-index: 12;
         flex: 0 0 auto;
         display: grid;
-        grid-template-columns: minmax(126px, 0.9fr) minmax(126px, 0.9fr) minmax(150px, 1fr) repeat(3, minmax(150px, 1.25fr)) minmax(150px, 1fr);
+        grid-template-columns: repeat(var(--chart-control-count, 7), minmax(0, 1fr));
         gap: 10px;
         padding: 14px 16px;
         border-bottom: 1px solid rgba(195, 0, 47, 0.16);
         background: linear-gradient(180deg, #ffffff 0%, #fff7f9 100%);
       }
       .chart-builder-controls.has-date-granularity {
-        grid-template-columns: minmax(126px, 0.9fr) minmax(126px, 0.9fr) repeat(2, minmax(150px, 1fr)) repeat(3, minmax(150px, 1.25fr)) minmax(150px, 1fr);
+        grid-template-columns: repeat(var(--chart-control-count, 8), minmax(0, 1fr));
       }
       .chart-control { display: block; }
       .chart-control > label { display: none; }
@@ -1774,6 +1774,27 @@
         overflow-x: hidden;
         overflow-y: auto;
       }
+      .chart-category-picker > summary > span:first-child { color: var(--text-secondary); }
+      .chart-category-picker > summary[aria-disabled="true"] { cursor: default; opacity: 0.65; }
+      .chart-category-picker > summary:focus-visible,
+      .chart-category-option:focus-within { outline: 2px solid var(--brand); outline-offset: 2px; }
+      .chart-category-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 8px 10px;
+        border-radius: 4px;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
+      .chart-category-option[hidden], .chart-category-no-match[hidden] { display: none; }
+      .chart-category-option:hover, .chart-category-option.is-selected { background: var(--brand-50); }
+      .chart-category-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); cursor: pointer; }
+      .chart-category-option span { overflow-wrap: anywhere; }
+      .chart-category-no-match { display: block; padding: 12px; color: var(--text-muted); font-size: 12px; }
+      .chart-category-empty-message { color: var(--text-secondary); font-size: 15px; text-align: center; }
+      .chart-category-picker .chart-filter-menu { width: min(320px, calc(100vw - 48px)); }
       .chart-color-panel {
         grid-column: auto;
         display: grid;
@@ -3323,7 +3344,7 @@
         <div class="section-head">
           <div>
             <h2 class="section-title">图表生成</h2>
-            <p class="section-note">把上传文件中识别出的字段拖入 X 轴或 Y 轴，自由组合维度与指标；每个画布拥有独立配置，可同时生成多张不同图表。</p>
+            <p class="section-note">把字段拖入 X 轴或 Y 轴，自由组合维度与指标；顶部筛选应用于全部画布，每个画布内的展示项和筛选独立设置。</p>
           </div>
           <div class="section-actions">
             <button class="btn btn-subtle" data-action="go-home">返回首页</button>
@@ -3997,7 +4018,14 @@
             colors: [...CHART_STUDIO_DEFAULT_COLORS],
             type: "",
             sort: "",
-            limit: 0,
+            selectedCategories: null,
+            categoryScope: "",
+            categorySearch: "",
+            openCategoryPicker: false,
+            monthSplit: false,
+            selectedMonths: null,
+            monthSearch: "",
+            openMonthPicker: false,
             dateAggregation: "day",
             openAxis: "",
             openComboSeriesType: "",
@@ -8129,10 +8157,40 @@
           ];
         }
 
-        function getChartStudioFilterFields() {
+        function getChartStudioFilterFields(config) {
+          const dimension = config ? getChartStudioAxisModel(config).dimension?.key : "";
           return CHART_STUDIO_FILTER_KEYS
             .map((key) => DATASET_DIMENSION_FIELDS.find((field) => field.key === key))
-            .filter((field) => field && hasDatasetDimension(field.key));
+            .filter((field) => field && hasDatasetDimension(field.key) && field.key !== dimension);
+        }
+
+        function hasChartStudioMonthSource() {
+          return ["month", "date"].some((dimension) => hasDatasetDimension(dimension)
+            && (state.dataset[dimension === "month" ? "months" : "dates"] || []).some((value) => /^\d{4}-(0[1-9]|1[0-2])(?:$|-)/.test(String(value))));
+        }
+
+        function getChartStudioRowMonth(row) {
+          const month = String(getDimensionValue(row, "month") || "");
+          if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return month;
+          const date = String(getDimensionValue(row, "date") || "");
+          return /^\d{4}-(0[1-9]|1[0-2])-/.test(date) ? date.slice(0, 7) : "未标注月份";
+        }
+
+        function canSplitChartStudioByMonth(config) {
+          return ["bar", "stacked-bar", "stacked-bar-percent", "line", "smooth-line", "stacked-line", "area", "stacked-area", "stacked-area-percent", "combo-bar-line", "combo-stacked-line"].includes(config.type);
+        }
+
+        function getChartStudioToolbarModel(config, axisModel = getChartStudioAxisModel(config)) {
+          const filterFields = getChartStudioFilterFields(config);
+          const showCategories = Boolean(axisModel.dimension);
+          const showSort = showCategories && !["scatter", "metric-funnel"].includes(config.type);
+          const hasDateAxis = axisModel.dimension?.key === "date";
+          const showMonths = showCategories && !["date", "month"].includes(axisModel.dimension.key) && hasChartStudioMonthSource();
+          const showMonthSplit = showMonths && canSplitChartStudioByMonth(config);
+          return {
+            filterFields, showCategories, showSort, hasDateAxis, showMonths, showMonthSplit,
+            controlCount: 2 + filterFields.length + Number(showCategories) + Number(showSort) + Number(hasDateAxis) + Number(showMonths) + Number(showMonthSplit),
+          };
         }
 
         function filterRowsByChartStudioFilters(rows, config, excludedKey = "") {
@@ -8303,8 +8361,37 @@
             const color = config.colors?.[index];
             return /^#[0-9a-f]{6}$/i.test(color || "") ? color : CHART_STUDIO_DEFAULT_COLORS[index];
           });
-          config.limit = Math.max(0, Math.min(200, Number(config.limit) || 0));
           const axisModel = getChartStudioAxisModel(config);
+          const categoryScope = `${axisModel.dimension?.key || "total"}:${axisModel.dimension?.key === "date" ? config.dateAggregation : ""}`;
+          if (config.categoryScope !== categoryScope) {
+            config.selectedCategories = null;
+            config.categorySearch = "";
+            config.openCategoryPicker = false;
+          }
+          config.categoryScope = categoryScope;
+          config.selectedCategories = Array.isArray(config.selectedCategories)
+            ? [...new Set(config.selectedCategories.map(String))]
+            : null;
+          const dimensionKey = axisModel.dimension?.key;
+          const sameDimensionFilter = config.filters[dimensionKey];
+          if (sameDimensionFilter?.length) {
+            // Merge the old filter into the visible category picker before removing its duplicate.
+            config.selectedCategories = config.selectedCategories === null
+              ? [...sameDimensionFilter]
+              : config.selectedCategories.filter((value) => sameDimensionFilter.includes(value));
+            config.filters[dimensionKey] = [];
+            if (!config.categorySearch) config.categorySearch = config.filterSearch[dimensionKey];
+            config.filterSearch[dimensionKey] = "";
+            if (config.openFilterKey === dimensionKey) config.openFilterKey = "";
+          }
+          config.categorySearch = String(config.categorySearch || "");
+          config.openCategoryPicker = Boolean(config.openCategoryPicker) && Boolean(axisModel.dimension);
+          const toolbar = getChartStudioToolbarModel(config, axisModel);
+          if (!toolbar.showSort) config.sort = "";
+          config.monthSplit = toolbar.showMonthSplit && Boolean(config.monthSplit);
+          config.selectedMonths = toolbar.showMonths && Array.isArray(config.selectedMonths) ? [...new Set(config.selectedMonths.map(String))] : null;
+          config.monthSearch = toolbar.showMonths ? String(config.monthSearch || "") : "";
+          config.openMonthPicker = toolbar.showMonths && Boolean(config.openMonthPicker);
           config.dimension = axisModel.dimension?.key || "total";
           config.metrics = getChartStudioRenderMetricKeys(config, axisModel);
           return config;
@@ -8330,19 +8417,45 @@
           const dimension = axisModel.dimension?.key || "total";
           const metricKeys = getChartStudioRenderMetricKeys(config, axisModel);
           const globallyFilteredRows = filterRowsByFilters(state.dataset.rows, getMainFilters());
-          const filteredRows = filterRowsByChartStudioFilters(globallyFilteredRows, config);
-          const groupedRows = dimension === "total"
-            ? new Map([["全部数据", filteredRows]])
+          const baseRows = filterRowsByChartStudioFilters(globallyFilteredRows, config);
+          const groupCategories = (items) => dimension === "total"
+            ? new Map([["全部数据", items]])
             : dimension === "date" && config.dateAggregation === "month"
-              ? groupRowsByChartStudioMonth(filteredRows)
-              : groupRows(filteredRows, dimension);
-          let rows = [...groupedRows.entries()].map(([name, items]) => {
+              ? groupRowsByChartStudioMonth(items) : groupRows(items, dimension);
+          const categoryLabel = (key) => dimension === "date" && config.dateAggregation === "month"
+            ? formatChartStudioMonth(key) : formatDimensionText(dimension, key);
+          const categoryOptions = [...groupCategories(baseRows).keys()].map((key) => ({ key: String(key), label: categoryLabel(key) }))
+            .sort((left, right) => compareNaturalDimensionText(left.label, right.label));
+          const { showMonths, showMonthSplit } = getChartStudioToolbarModel(config, axisModel);
+          const monthOptions = showMonths ? [...new Set(baseRows.map(getChartStudioRowMonth))]
+            .sort((left, right) => left === "未标注月份" ? 1 : right === "未标注月份" ? -1 : left.localeCompare(right))
+            .map((key) => ({ key, label: formatChartStudioMonth(key) })) : [];
+          const selectedMonths = showMonths && Array.isArray(config.selectedMonths) ? new Set(config.selectedMonths) : null;
+          const filteredRows = selectedMonths ? baseRows.filter((row) => selectedMonths.has(getChartStudioRowMonth(row))) : baseRows;
+          const selectedCategories = Array.isArray(config.selectedCategories) ? new Set(config.selectedCategories) : null;
+          const selectedGroups = [...groupCategories(filteredRows)].filter(([key, items]) => items.length && (!selectedCategories || selectedCategories.has(String(key))));
+          const displayedSourceRows = selectedGroups.flatMap(([, items]) => items);
+          const monthSplit = showMonthSplit && Boolean(config.monthSplit);
+          const months = monthOptions.filter((option) => !selectedMonths || selectedMonths.has(option.key));
+          const summarizeMonths = (items) => {
+            const groups = new Map();
+            items.forEach((row) => {
+              const month = getChartStudioRowMonth(row);
+              if (!groups.has(month)) groups.set(month, []);
+              groups.get(month).push(row);
+            });
+            return Object.fromEntries([...groups].map(([month, rows]) => [month, computeSummaryFromRows(rows)]));
+          };
+          const monthlySummaries = monthSplit ? summarizeMonths(displayedSourceRows) : {};
+          const rows = selectedGroups.map(([name, items]) => {
             const summary = computeSummaryFromRows(items);
+            const monthly = monthSplit ? summarizeMonths(items) : {};
             return {
-              name: dimension === "date" && config.dateAggregation === "month"
-                ? formatChartStudioMonth(name)
-                : formatDimensionText(dimension, name),
+              name: categoryLabel(name),
               values: Object.fromEntries(metricKeys.map((key) => [key, getChartStudioMetricValue(summary, key)])),
+              monthValues: Object.fromEntries(Object.entries(monthly).map(([month, summary]) => [month,
+                Object.fromEntries(metricKeys.map((key) => [key, getChartStudioMetricValue(summary, key)])),
+              ])),
             };
           });
           const primaryMetric = metricKeys[0];
@@ -8352,16 +8465,32 @@
           if (primaryMetric && config.sort === "value-asc") rows.sort((left, right) => left.values[primaryMetric] - right.values[primaryMetric]);
           if (config.sort === "category-asc") rows.sort((left, right) => compareNaturalDimensionText(left.name, right.name));
           if (config.sort === "category-desc") rows.sort((left, right) => compareNaturalDimensionText(right.name, left.name));
-          const categoryCount = rows.length;
-          if (config.limit > 0) rows = rows.slice(0, config.limit);
           return {
-            rows,
-            categoryCount,
-            filteredRowCount: filteredRows.length,
-            summary: computeSummaryFromRows(filteredRows),
-            axisModel,
-            metricKeys,
+            rows, categoryOptions, categoryCount: categoryOptions.length, monthOptions, months, monthSplit, monthlySummaries,
+            filteredRowCount: displayedSourceRows.length, summary: computeSummaryFromRows(displayedSourceRows), axisModel, metricKeys,
           };
+        }
+
+        function getChartStudioDisplaySeries(config, chartData) {
+          const { rows, metricKeys, summary, monthSplit, months, monthOptions, monthlySummaries } = chartData;
+          const makeSeries = (metricKey, metricIndex, month = null) => ({
+            metricKey, monthKey: month?.key || "",
+            name: month ? `${month.label}${metricKeys.length > 1 ? ` · ${getChartStudioMetricLabel(metricKey)}` : ""}` : getChartStudioMetricLabel(metricKey),
+            colorIndex: month ? monthOptions.findIndex((option) => option.key === month.key) * metricKeys.length + metricIndex : metricIndex,
+            values: rows.map((row) => month ? row.monthValues[month.key]?.[metricKey] ?? null : row.values[metricKey]),
+            total: month ? monthlySummaries[month.key] ? getChartStudioMetricValue(monthlySummaries[month.key], metricKey) : null : getChartStudioMetricValue(summary, metricKey),
+          });
+          return monthSplit ? months.flatMap((month) => metricKeys.map((key, index) => makeSeries(key, index, month)))
+            : metricKeys.map((key, index) => makeSeries(key, index));
+        }
+
+        function getChartStudioSeriesColor(config, index) {
+          const base = config.colors[index % config.colors.length];
+          const blend = Math.min(0.42, Math.floor(index / config.colors.length) * 0.18);
+          return `#${[1, 3, 5].map((offset) => {
+            const value = parseInt(base.slice(offset, offset + 2), 16);
+            return Math.round(value + (255 - value) * blend).toString(16).padStart(2, "0");
+          }).join("")}`;
         }
 
         function groupRowsByChartStudioMonth(rows) {
@@ -8386,42 +8515,41 @@
         }
 
         function buildChartStudioDataView(config, chartData) {
-          const { rows, categoryCount, filteredRowCount, summary, axisModel, metricKeys } = chartData;
+          const { rows, categoryCount, filteredRowCount, axisModel, metricKeys, monthSplit, months } = chartData;
+          const series = getChartStudioDisplaySeries(config, chartData);
           const dimensionLabel = getChartStudioDimensionLabel(config, axisModel);
-          const dataScopeLabel = axisModel.dimension?.key === "date" && config.dateAggregation === "month" ? "分月汇总" : `${dimensionLabel}明细`;
+          const dataScopeLabel = monthSplit ? `${dimensionLabel} · 按月拆分` : axisModel.dimension?.key === "date" && config.dateAggregation === "month" ? "分月汇总" : `${dimensionLabel}明细`;
           const hasTotal = Boolean(axisModel.dimension && rows.length > 1);
+          const formatCell = (item, value) => value == null ? "—" : formatChartStudioMetricValue(item.metricKey, value);
           const headers = config.dataViewTransposed
-            ? ["指标", ...rows.map((row) => row.name), ...(hasTotal ? ["合计"] : [])]
-            : [dimensionLabel, ...metricKeys.map(getChartStudioMetricLabel)];
+            ? [monthSplit ? "月份 / 指标" : "指标", ...rows.map((row) => row.name), ...(hasTotal ? ["合计"] : [])]
+            : [dimensionLabel, ...series.map((item) => item.name)];
           const bodyRows = config.dataViewTransposed
-            ? metricKeys.map((key) => `
+            ? series.map((item) => `
               <tr>
-                <td>${escapeHtml(getChartStudioMetricLabel(key))}</td>
-                ${rows.map((row) => `<td>${escapeHtml(formatChartStudioMetricValue(key, row.values[key]))}</td>`).join("")}
-                ${hasTotal ? `<td class="chart-data-view-total">${escapeHtml(formatChartStudioMetricValue(key, getChartStudioMetricValue(summary, key)))}</td>` : ""}
+                <td>${escapeHtml(item.name)}</td>
+                ${rows.map((row, index) => `<td>${escapeHtml(formatCell(item, item.values[index]))}</td>`).join("")}
+                ${hasTotal ? `<td class="chart-data-view-total">${escapeHtml(formatCell(item, item.total))}</td>` : ""}
               </tr>
             `).join("")
-            : rows.map((row) => `
+            : rows.map((row, index) => `
               <tr>
                 <td>${escapeHtml(row.name)}</td>
-                ${metricKeys.map((key) => `<td>${escapeHtml(formatChartStudioMetricValue(key, row.values[key]))}</td>`).join("")}
+                ${series.map((item) => `<td>${escapeHtml(formatCell(item, item.values[index]))}</td>`).join("")}
               </tr>
             `).join("");
           const totalRow = !config.dataViewTransposed && hasTotal ? `
-            <tfoot>
-              <tr>
-                <td>合计</td>
-                ${metricKeys.map((key) => `<td>${escapeHtml(formatChartStudioMetricValue(key, getChartStudioMetricValue(summary, key)))}</td>`).join("")}
-              </tr>
-            </tfoot>
+            <tfoot><tr><td>合计</td>
+              ${series.map((item) => `<td>${escapeHtml(formatCell(item, item.total))}</td>`).join("")}
+            </tr></tfoot>
           ` : "";
-          const limitText = rows.length < categoryCount ? `当前展示前 ${formatNumber(rows.length)} 项，共 ${formatNumber(categoryCount)} 项` : `展示 ${formatNumber(rows.length)} 项`;
+          const categoryText = rows.length < categoryCount ? `当前展示 ${formatNumber(rows.length)} 项，共 ${formatNumber(categoryCount)} 项` : `展示 ${formatNumber(rows.length)} 项`;
           return `
             <div class="chart-data-view">
               <div class="chart-data-view-meta">
                 <div class="chart-data-view-meta-copy">
                   <span>${escapeHtml(dataScopeLabel)} · ${formatNumber(filteredRowCount)} 行源数据</span>
-                  <span>${escapeHtml(limitText)} · ${formatNumber(metricKeys.length)} 个指标</span>
+                  <span>${escapeHtml(categoryText)} · ${monthSplit ? `${months.length} 个月 × ` : ""}${formatNumber(metricKeys.length)} 个指标</span>
                 </div>
                 <div class="chart-data-view-actions">
                   <button class="btn btn-subtle" type="button" data-action="transpose-chart-data-view" data-chart-id="${config.id}" aria-pressed="${config.dataViewTransposed}">${config.dataViewTransposed ? "恢复行列" : "行列转置"}</button>
@@ -8430,11 +8558,8 @@
               </div>
               <div class="chart-data-view-table-wrap">
                 <table class="chart-data-view-table ${config.dataViewTransposed ? "is-transposed" : ""}">
-                  <thead>
-                    <tr>${headers.map((header, index) => `<th scope="col" class="${config.dataViewTransposed && hasTotal && index === headers.length - 1 ? "chart-data-view-total" : ""}">${escapeHtml(header)}</th>`).join("")}</tr>
-                  </thead>
-                  <tbody>${bodyRows}</tbody>
-                  ${totalRow}
+                  <thead><tr>${headers.map((header, index) => `<th scope="col" class="${config.dataViewTransposed && hasTotal && index === headers.length - 1 ? "chart-data-view-total" : ""}">${escapeHtml(header)}</th>`).join("")}</tr></thead>
+                  <tbody>${bodyRows}</tbody>${totalRow}
                 </table>
               </div>
             </div>
@@ -8458,7 +8583,12 @@
         function getChartStudioCanvasError(config, chartData) {
           const { rows, axisModel, metricKeys } = chartData;
           if (!config.type) return "数据分析图表区";
-          if (!rows.length) return "当前筛选口径下没有可绘制的数据";
+          if (!rows.length) {
+            if (config.selectedMonths?.length === 0) return "请至少选择一个要展示的月份";
+            if (config.selectedCategories?.length === 0) return "请至少选择一个要展示的分类";
+            if (Array.isArray(config.selectedMonths)) return "当前筛选下没有所选月份的数据";
+            return Array.isArray(config.selectedCategories) ? "当前筛选下没有所选分类的数据" : "当前筛选口径下没有可绘制的数据";
+          }
           if (config.type === "scatter") {
             if (!axisModel.xMetrics.length || !axisModel.yMetrics.length) return "XY 散点图需要在 X 轴和 Y 轴各放入至少一个数值指标";
             return "";
@@ -8489,13 +8619,15 @@
           const dom = document.getElementById(domId);
           if (!dom) return;
           const chartData = computeChartStudioData(config);
-          const { rows, filteredRowCount, summary, axisModel, metricKeys } = chartData;
+          const { rows, filteredRowCount, summary, axisModel, metricKeys, monthSplit } = chartData;
+          const displaySeries = getChartStudioDisplaySeries(config, chartData);
           const canvasError = getChartStudioCanvasError(config, chartData);
           if (canvasError) {
             disposeChart(chartName);
             dom.innerHTML = `
               <div class="empty-focus chart-empty-watermark" aria-label="${escapeHtml(canvasError)}">
                 <img src="图标库/黑白简易.png" alt="" aria-hidden="true" />
+                ${config.type && !rows.length && (Array.isArray(config.selectedCategories) || Array.isArray(config.selectedMonths)) ? `<span class="chart-category-empty-message">${escapeHtml(canvasError)}</span>` : ""}
               </div>
             `;
             return;
@@ -8508,11 +8640,11 @@
           const primaryMetric = metricKeys[0];
           const common = {
             animationDuration: 420,
-            color: config.colors,
+            color: monthSplit ? displaySeries.map((item) => getChartStudioSeriesColor(config, item.colorIndex)) : config.colors,
             textStyle: { fontFamily: UI_FONT_FAMILY },
             title: {
               text: config.title || "自定义图表",
-              subtext: `${dimensionLabel} · ${formatNumber(filteredRowCount)} 行明细 · ${formatNumber(rows.length)} 个分类`,
+              subtext: `${dimensionLabel} · ${formatNumber(filteredRowCount)} 行明细 · ${formatNumber(rows.length)} 个分类${monthSplit ? " · 按月拆分" : ""}`,
               left: 18,
               top: 10,
               textStyle: { color: "#0d1117", fontSize: 16, fontWeight: 800 },
@@ -8541,7 +8673,7 @@
                 trigger: "item",
                 formatter: (params) => `${escapeHtml(params.name)}<br/>${escapeHtml(getChartStudioMetricLabel(primaryMetric))}：${formatChartStudioMetricValue(primaryMetric, params.value)}<br/>占比：${params.percent}%`,
               },
-              legend: { type: "scroll", top: 62, left: 18, right: 18 },
+              legend: { type: "scroll", top: 62, left: 18, right: 18, selectedMode: false },
               series: [{
                 name: getChartStudioMetricLabel(primaryMetric),
                 type: "pie",
@@ -8867,32 +8999,37 @@
 
           if (isChartStudioComboType(config.type)) {
             const { barMetricKeys, lineMetricKeys } = getChartStudioComboMetricGroups(config, axisModel);
-            const barSeries = barMetricKeys.map((key) => ({
-              name: getChartStudioMetricLabel(key),
+            const barDefinitions = displaySeries.filter((item) => barMetricKeys.includes(item.metricKey));
+            const lineDefinitions = displaySeries.filter((item) => lineMetricKeys.includes(item.metricKey));
+            const comboDefinitions = [...barDefinitions, ...lineDefinitions];
+            const barSeries = barDefinitions.map((item) => ({
+              name: item.name,
               type: "bar",
               [horizontal ? "xAxisIndex" : "yAxisIndex"]: 0,
-              stack: config.type === "combo-stacked-line" ? "combo-total" : undefined,
+              stack: config.type === "combo-stacked-line" ? monthSplit ? `month:${item.monthKey}` : "combo-total" : undefined,
               barMaxWidth: 34,
+              itemStyle: { color: getChartStudioSeriesColor(config, item.colorIndex) },
               emphasis: { focus: "series" },
-              data: rows.map((row) => row.values[key]),
+              data: item.values,
             }));
-            const lineSeries = lineMetricKeys.map((key) => ({
-              name: getChartStudioMetricLabel(key),
+            const lineSeries = lineDefinitions.map((item) => ({
+              name: item.name,
               type: "line",
               [horizontal ? "xAxisIndex" : "yAxisIndex"]: 1,
               smooth: true,
               symbolSize: 7,
+              itemStyle: { color: getChartStudioSeriesColor(config, item.colorIndex) },
               emphasis: { focus: "series" },
-              data: rows.map((row) => row.values[key]),
+              data: item.values,
             }));
             chart.setOption({
               ...common,
               tooltip: {
                 trigger: "axis",
                 axisPointer: { type: "cross" },
-                formatter: (params) => `${escapeHtml(params[0]?.axisValue || "")}<br/>${params.map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatChartStudioMetricValue(metricKeys[item.seriesIndex], item.value)}`).join("<br/>")}`,
+                formatter: (params) => `${escapeHtml(params[0]?.axisValue || "")}<br/>${params.filter((item) => item.value != null && item.value !== "-").map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatChartStudioMetricValue(comboDefinitions[item.seriesIndex].metricKey, item.value)}`).join("<br/>")}`,
               },
-              legend: { type: "scroll", top: 68, left: 18, right: 120, itemGap: 18 },
+              legend: { type: "scroll", top: 68, left: 18, right: 120, itemGap: 18, selectedMode: !monthSplit },
               grid: {
                 left: horizontal ? 110 : 68,
                 right: horizontal ? 40 : 68,
@@ -8915,27 +9052,30 @@
           const tooltip = {
             trigger: "axis",
             axisPointer: { type: seriesType === "bar" ? "shadow" : "line" },
-            formatter: (params) => `${escapeHtml(params[0]?.axisValue || "")}<br/>${params.map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatChartStudioMetricValue(metricKeys[item.seriesIndex], item.value, percentStack)}`).join("<br/>")}`,
+            formatter: (params) => `${escapeHtml(params[0]?.axisValue || "")}<br/>${params.filter((item) => item.value != null && item.value !== "-").map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatChartStudioMetricValue(displaySeries[item.seriesIndex].metricKey, item.value, percentStack)}`).join("<br/>")}`,
           };
           chart.setOption({
             ...common,
             tooltip,
-            legend: { type: "scroll", top: 62, left: 18, right: 120 },
+            legend: { type: "scroll", top: 62, left: 18, right: 120, selectedMode: !monthSplit },
             grid: { left: horizontal ? 110 : 68, right: 34, top: 96, bottom: !horizontal && rows.length > 8 ? 92 : 54 },
             xAxis: horizontal ? valueAxis : categoryAxis,
             yAxis: horizontal ? categoryAxis : valueAxis,
-            series: metricKeys.map((key) => ({
-              name: getChartStudioMetricLabel(key),
+            series: displaySeries.map((item) => ({
+              name: item.name,
               type: seriesType,
               smooth: config.type === "smooth-line",
-              stack: stacked ? "total" : undefined,
+              stack: stacked ? monthSplit ? `month:${item.monthKey}` : "total" : undefined,
+              itemStyle: { color: getChartStudioSeriesColor(config, item.colorIndex) },
               areaStyle: areaTypes.includes(config.type) ? { opacity: 0.18 } : undefined,
               emphasis: { focus: "series" },
               barMaxWidth: 34,
-              data: rows.map((row) => {
-                if (!percentStack) return row.values[key];
-                const total = metricKeys.reduce((sum, metricKey) => sum + row.values[metricKey], 0);
-                return total ? Number((row.values[key] / total * 100).toFixed(2)) : 0;
+              data: rows.map((row, index) => {
+                const value = item.values[index];
+                if (value == null || !percentStack) return value;
+                const values = monthSplit ? row.monthValues[item.monthKey] : row.values;
+                const total = metricKeys.reduce((sum, metricKey) => sum + values[metricKey], 0);
+                return total ? Number((value / total * 100).toFixed(2)) : 0;
               }),
             })),
           });
@@ -9075,6 +9215,55 @@
           `;
         }
 
+        function renderChartStudioCategoryPicker(config, chartData) {
+          const dimension = chartData.axisModel.dimension?.key;
+          const label = dimension === "month" || (dimension === "date" && config.dateAggregation === "month") ? "月份" : getChartStudioDimensionLabel(config, chartData.axisModel);
+          return renderChartStudioValuePicker(config, chartData.categoryOptions, "category", label, Boolean(dimension));
+        }
+
+        function renderChartStudioMonthPicker(config, chartData) {
+          return renderChartStudioValuePicker(config, chartData.monthOptions, "month", "月份");
+        }
+
+        function renderChartStudioValuePicker(config, options, kind, label, enabled = true) {
+          const isMonth = kind === "month";
+          const values = config[isMonth ? "selectedMonths" : "selectedCategories"];
+          const selectedSet = Array.isArray(values) ? new Set(values) : null;
+          const selectedCount = options.filter((option) => !selectedSet || selectedSet.has(option.key)).length;
+          const searchValue = config[isMonth ? "monthSearch" : "categorySearch"];
+          const search = normalizeHeaderName(searchValue);
+          const hasMatches = options.some((option) => !search || normalizeHeaderName(option.label).includes(search));
+          const actionName = isMonth ? "months" : "categories";
+          return `
+            <details class="chart-filter-picker chart-category-picker ${isMonth ? "chart-month-picker" : ""}" data-chart-${kind}-picker ${config[isMonth ? "openMonthPicker" : "openCategoryPicker"] ? "open" : ""}>
+              <summary aria-disabled="${!enabled}">
+                <span>${enabled ? `展示${escapeHtml(label)}` : "展示分类"}</span>
+                <span class="chart-filter-count">${!enabled ? "先选维度" : selectedSet ? `${selectedCount} / ${options.length} 项` : "全部"}</span>
+              </summary>
+              <div class="chart-filter-menu">
+                <div class="chart-filter-search chart-control">
+                  <input type="search" value="${escapeHtml(searchValue)}" data-chart-${kind}-search placeholder="搜索${escapeHtml(label)}" aria-label="搜索要展示的${escapeHtml(label)}" />
+                </div>
+                <div class="chart-filter-options">
+                  ${options.map((option) => {
+                    const selected = !selectedSet || selectedSet.has(option.key);
+                    const hidden = search && !normalizeHeaderName(option.label).includes(search);
+                    return `<label class="chart-category-option ${selected ? "is-selected" : ""}" ${hidden ? "hidden" : ""}>
+                      <input type="checkbox" data-chart-${kind}-value="${escapeHtml(option.key)}" ${selected ? "checked" : ""} />
+                      <span>${escapeHtml(option.label)}</span>
+                    </label>`;
+                  }).join("")}
+                  <span class="chart-category-no-match" ${hasMatches ? "hidden" : ""}>${options.length ? "没有匹配项" : "当前筛选下没有可选项"}</span>
+                </div>
+                <div class="chart-filter-actions">
+                  <button class="btn btn-ghost" type="button" data-action="all-chart-${actionName}">显示全部</button>
+                  <button class="btn btn-ghost" type="button" data-action="clear-chart-${actionName}">清空选择</button>
+                </div>
+              </div>
+            </details>
+          `;
+        }
+
         function renderChartStudioColorPicker(config) {
           const colorOptions = config.type === "waterfall"
             ? [
@@ -9093,7 +9282,7 @@
                   <span class="chart-color-panel-title">图表元素颜色</span>
                   <button class="btn btn-ghost" type="button" data-action="reset-chart-colors" data-chart-id="${config.id}">恢复默认配色</button>
                 </div>
-                <span class="chart-color-panel-note">${config.type === "waterfall" ? "分别设置瀑布图的增加与减少颜色，柱间自动显示连接线。" : "颜色依次应用到各指标系列、饼块或漏斗阶段。"}</span>
+                <span class="chart-color-panel-note">${config.type === "waterfall" ? "分别设置瀑布图的增加与减少颜色，柱间自动显示连接线。" : config.monthSplit ? "颜色按月份和指标依次应用，同一系列在各分类中保持一致。" : "颜色依次应用到各指标系列、饼块或漏斗阶段。"}</span>
                 <div class="chart-color-options">
                   ${colorOptions.map(({ index, label }) => `
                     <label class="chart-color-option">
@@ -9110,11 +9299,11 @@
         function renderChartStudioCard(config) {
           normalizeChartCanvasConfig(config);
           const fields = getChartStudioFields();
-          const filterFields = getChartStudioFilterFields();
           const assignedFields = new Set([...config.xFields, ...config.yFields]);
           const axisModel = getChartStudioAxisModel(config);
-          const hasDateAxis = axisModel.dimension?.key === "date";
-          const dataView = config.dataViewOpen ? buildChartStudioDataView(config, computeChartStudioData(config)) : "";
+          const { filterFields, showCategories, showSort, hasDateAxis, showMonths, showMonthSplit, controlCount } = getChartStudioToolbarModel(config, axisModel);
+          const chartData = computeChartStudioData(config);
+          const dataView = config.dataViewOpen ? buildChartStudioDataView(config, chartData) : "";
           return `
             <article class="panel chart-builder" data-chart-canvas-id="${config.id}">
               <div class="chart-builder-head">
@@ -9134,7 +9323,7 @@
                   <button class="btn btn-ghost" type="button" data-action="remove-chart-canvas" data-chart-id="${config.id}">删除</button>
                 </div>
               </div>
-              <div class="chart-builder-controls ${hasDateAxis ? "has-date-granularity" : ""} no-print">
+              <div class="chart-builder-controls ${hasDateAxis ? "has-date-granularity" : ""} no-print" style="--chart-control-count: ${controlCount}">
                 <div class="chart-control">
                   <select id="chartType-${config.id}" data-chart-control="type" aria-label="图表类型" required>
                     <option value="" disabled ${config.type ? "" : "selected"}>图表类型</option>
@@ -9145,7 +9334,7 @@
                     `).join("")}
                   </select>
                 </div>
-                <div class="chart-control">
+                ${showSort ? `<div class="chart-control">
                   <select id="chartSort-${config.id}" data-chart-control="sort" aria-label="分类排序" required>
                     <option value="" disabled ${config.sort ? "" : "selected"}>分类排序</option>
                     <option value="value-desc" ${config.sort === "value-desc" ? "selected" : ""}>主指标从高到低</option>
@@ -9153,10 +9342,15 @@
                     <option value="category-asc" ${config.sort === "category-asc" ? "selected" : ""}>分类正序</option>
                     <option value="category-desc" ${config.sort === "category-desc" ? "selected" : ""}>分类倒序</option>
                   </select>
-                </div>
-                <div class="chart-control">
-                  <input id="chartLimit-${config.id}" type="number" min="0" max="200" step="1" data-chart-control="limit" value="${config.limit || ""}" placeholder="显示数量（0 为全部）" aria-label="显示数量，0 为全部" />
-                </div>
+                </div>` : ""}
+                ${showCategories ? renderChartStudioCategoryPicker(config, chartData) : ""}
+                ${showMonthSplit ? `<div class="chart-control">
+                  <select data-chart-control="monthSplit" aria-label="月度展示方式">
+                    <option value="total" ${config.monthSplit ? "" : "selected"}>合并汇总</option>
+                    <option value="month" ${config.monthSplit ? "selected" : ""}>按月拆分</option>
+                  </select>
+                </div>` : ""}
+                ${showMonths ? renderChartStudioMonthPicker(config, chartData) : ""}
                 ${hasDateAxis ? `
                   <div class="chart-control chart-date-granularity">
                     <select id="chartDateAggregation-${config.id}" data-chart-control="dateAggregation" aria-label="日期汇总方式">
@@ -9214,6 +9408,10 @@
                 comboSeriesTypes: { ...sourceConfig.comboSeriesTypes },
                 filters: Object.fromEntries(Object.entries(sourceConfig.filters).map(([key, values]) => [key, [...values]])),
                 colors: [...sourceConfig.colors],
+                selectedCategories: Array.isArray(sourceConfig.selectedCategories) ? [...sourceConfig.selectedCategories] : null,
+                selectedMonths: Array.isArray(sourceConfig.selectedMonths) ? [...sourceConfig.selectedMonths] : null,
+                openMonthPicker: false,
+                openCategoryPicker: false,
                 metrics: [...sourceConfig.metrics],
                 title: `${sourceConfig.title} 副本`,
                 openAxis: "",
@@ -9356,6 +9554,49 @@
           renderChartStudio();
         }
 
+        function updateChartStudioCategorySelection(chartId, value, checked) {
+          updateChartStudioValueSelection(chartId, value, checked, "category");
+        }
+
+        function updateChartStudioValueSelection(chartId, value, checked, kind) {
+          const config = getChartCanvasConfig(chartId);
+          if (!config || !["category", "month"].includes(kind)) return;
+          normalizeChartCanvasConfig(config);
+          const chartData = computeChartStudioData(config);
+          const isMonth = kind === "month";
+          const options = isMonth ? chartData.monthOptions : chartData.categoryOptions;
+          if (!chartData.axisModel.dimension || !options.some((option) => option.key === value)) return;
+          const selectionKey = isMonth ? "selectedMonths" : "selectedCategories";
+          const selected = new Set(config[selectionKey] || options.map((option) => option.key));
+          if (checked) selected.add(value);
+          else selected.delete(value);
+          config[selectionKey] = [...selected];
+          config[isMonth ? "openMonthPicker" : "openCategoryPicker"] = true;
+          const selector = `[data-chart-canvas-id="${config.id}"] [data-chart-${kind}-picker]`;
+          const scrollTop = document.querySelector(selector)?.querySelector(".chart-filter-options")?.scrollTop || 0;
+          renderChartStudio();
+          requestAnimationFrame(() => {
+            const picker = document.querySelector(selector);
+            if (!picker) return;
+            picker.querySelector(".chart-filter-options").scrollTop = scrollTop;
+            [...picker.querySelectorAll(`[data-chart-${kind}-value]`)].find((input) => input.getAttribute(`data-chart-${kind}-value`) === value)?.focus({ preventScroll: true });
+          });
+        }
+
+        function resetChartStudioCategorySelection(chartId, showAll) {
+          resetChartStudioValueSelection(chartId, showAll, "category");
+        }
+
+        function resetChartStudioValueSelection(chartId, showAll, kind) {
+          const config = getChartCanvasConfig(chartId);
+          if (!config || !["category", "month"].includes(kind)) return;
+          const isMonth = kind === "month";
+          config[isMonth ? "selectedMonths" : "selectedCategories"] = showAll ? null : [];
+          config[isMonth ? "openMonthPicker" : "openCategoryPicker"] = true;
+          renderChartStudio();
+          requestAnimationFrame(() => document.querySelector(`[data-chart-canvas-id="${config.id}"] [data-chart-${kind}-picker] > summary`)?.focus({ preventScroll: true }));
+        }
+
         function toggleChartStudioFilter(chartId, fieldKey, value) {
           const config = getChartCanvasConfig(chartId);
           if (!config || !CHART_STUDIO_FILTER_KEYS.includes(fieldKey)) return;
@@ -9394,8 +9635,16 @@
             renderChartStudio();
             return;
           }
-          if (control === "sort") config.sort = target.value;
-          if (control === "limit") config.limit = Math.max(0, Math.min(200, Number(target.value) || 0));
+          if (control === "sort") {
+            config.sort = target.value;
+            renderChartStudio();
+            return;
+          }
+          if (control === "monthSplit") {
+            config.monthSplit = target.value === "month";
+            renderChartStudio();
+            return;
+          }
           if (control === "dateAggregation") {
             config.dateAggregation = target.value === "month" ? "month" : "day";
             renderChartStudio();
@@ -11608,6 +11857,21 @@
           });
 
           document.body.addEventListener("input", (event) => {
+            const categorySearch = event.target.closest("[data-chart-category-search], [data-chart-month-search]");
+            if (categorySearch instanceof HTMLInputElement) {
+              const card = categorySearch.closest("[data-chart-canvas-id]");
+              const config = card ? getChartCanvasConfig(card.dataset.chartCanvasId) : null;
+              if (!config) return;
+              config[categorySearch.hasAttribute("data-chart-month-search") ? "monthSearch" : "categorySearch"] = categorySearch.value;
+              const search = normalizeHeaderName(categorySearch.value);
+              const picker = categorySearch.closest(".chart-category-picker");
+              const options = [...picker.querySelectorAll(".chart-category-option")];
+              options.forEach((option) => {
+                option.hidden = Boolean(search) && !normalizeHeaderName(option.textContent).includes(search);
+              });
+              picker.querySelector(".chart-category-no-match").hidden = options.some((option) => !option.hidden);
+              return;
+            }
             const target = event.target.closest("[data-chart-filter-search]");
             const card = target?.closest("[data-chart-canvas-id]");
             if (!(target instanceof HTMLInputElement) || !(card instanceof HTMLElement)) return;
@@ -11623,12 +11887,28 @@
 
           document.body.addEventListener("toggle", (event) => {
             const picker = event.target;
-            if (!(picker instanceof HTMLDetailsElement) || !picker.matches("[data-chart-filter-field]")) return;
+            if (!(picker instanceof HTMLDetailsElement) || !picker.isConnected || !picker.matches("[data-chart-filter-field], [data-chart-category-picker], [data-chart-month-picker]")) return;
             const card = picker.closest("[data-chart-canvas-id]");
             const config = card ? getChartCanvasConfig(card.dataset.chartCanvasId) : null;
             if (!config) return;
+            const isMonthPicker = picker.hasAttribute("data-chart-month-picker");
+            const isCategoryPicker = picker.hasAttribute("data-chart-category-picker");
+            const isValuePicker = isMonthPicker || isCategoryPicker;
+            const openKey = isMonthPicker ? "openMonthPicker" : "openCategoryPicker";
+            const toolbar = getChartStudioToolbarModel(config);
+            if (isValuePicker && !(isMonthPicker ? toolbar.showMonths : toolbar.showCategories)) {
+              picker.open = false;
+              config[openKey] = false;
+              return;
+            }
+            if (isValuePicker) config[openKey] = picker.open;
             if (picker.open) {
-              config.openFilterKey = picker.dataset.chartFilterField;
+              config.openFilterKey = isValuePicker ? "" : picker.dataset.chartFilterField;
+              if (!isCategoryPicker) config.openCategoryPicker = false;
+              if (!isMonthPicker) config.openMonthPicker = false;
+              card.querySelectorAll(".chart-filter-picker[open]").forEach((otherPicker) => {
+                if (otherPicker !== picker) otherPicker.open = false;
+              });
               config.openAxis = "";
               config.openComboSeriesType = "";
               card.querySelectorAll(".chart-axis-picker.is-open").forEach((axisPicker) => {
@@ -11637,10 +11917,19 @@
                 axisPicker.querySelector(".chart-axis-zone")?.setAttribute("aria-expanded", "false");
               });
             }
-            else if (config.openFilterKey === picker.dataset.chartFilterField) config.openFilterKey = "";
+            else if (!isValuePicker && config.openFilterKey === picker.dataset.chartFilterField) config.openFilterKey = "";
           }, true);
 
           document.body.addEventListener("change", (event) => {
+            const categoryInput = event.target.closest("[data-chart-category-value], [data-chart-month-value]");
+            if (categoryInput instanceof HTMLInputElement) {
+              const card = categoryInput.closest("[data-chart-canvas-id]");
+              if (card) {
+                const kind = categoryInput.hasAttribute("data-chart-month-value") ? "month" : "category";
+                updateChartStudioValueSelection(card.dataset.chartCanvasId, categoryInput.getAttribute(`data-chart-${kind}-value`), categoryInput.checked, kind);
+              }
+              return;
+            }
             const target = event.target.closest("[data-chart-control]");
             if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
             updateChartCanvasControl(target);
@@ -11660,6 +11949,16 @@
           });
 
           document.body.addEventListener("keydown", (event) => {
+            const categoryPicker = event.target.closest(".chart-category-picker[open]");
+            if (event.key === "Escape" && categoryPicker) {
+              const card = categoryPicker.closest("[data-chart-canvas-id]");
+              const config = card ? getChartCanvasConfig(card.dataset.chartCanvasId) : null;
+              if (config) config[categoryPicker.hasAttribute("data-chart-month-picker") ? "openMonthPicker" : "openCategoryPicker"] = false;
+              categoryPicker.open = false;
+              categoryPicker.querySelector("summary").focus();
+              event.preventDefault();
+              return;
+            }
             const titleEditor = event.target.closest("[data-chart-title-editor]");
             if (titleEditor instanceof HTMLInputElement && !titleEditor.readOnly) {
               if (event.key === "Enter") titleEditor.blur();
@@ -11767,6 +12066,8 @@
               const card = picker.closest("[data-chart-canvas-id]");
               const config = card ? getChartCanvasConfig(card.dataset.chartCanvasId) : null;
               if (config && picker.matches("[data-chart-filter-field]")) config.openFilterKey = "";
+              if (config && picker.matches("[data-chart-category-picker]")) config.openCategoryPicker = false;
+              if (config && picker.matches("[data-chart-month-picker]")) config.openMonthPicker = false;
             });
             const target = event.target.closest("[data-action]");
             if (!(target instanceof HTMLElement)) return;
@@ -11781,7 +12082,15 @@
               config.openAxis = isSameTarget ? "" : axis;
               config.openComboSeriesType = isSameTarget ? "" : seriesType;
               config.openFilterKey = "";
+              config.openCategoryPicker = false;
+              config.openMonthPicker = false;
               renderChartStudio();
+              return;
+            }
+            if (["all-chart-categories", "clear-chart-categories", "all-chart-months", "clear-chart-months"].includes(action)) {
+              const card = target.closest("[data-chart-canvas-id]");
+              const kind = action.endsWith("months") ? "month" : "category";
+              if (card) resetChartStudioValueSelection(card.dataset.chartCanvasId, action.startsWith("all-"), kind);
               return;
             }
             if (action === "toggle-chart-data-view") {

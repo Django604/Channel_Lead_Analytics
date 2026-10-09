@@ -184,7 +184,93 @@ async function verifyWaterfallChart(page) {
   assert.equal(result.connectorColor, "#b8c3cf");
   assert.equal(result.connector.length, result.categories.length, "每个瀑布台阶都应具有累计连接点");
   assert.equal(await card.locator(".chart-color-option").count(), 2, "瀑布图颜色面板应提供增加与减少两个颜色项");
+  assert.equal(await card.locator("[data-chart-category-picker]").count(), 1, "渠道分类应只有一个展示选择入口");
+  assert.equal(await card.locator('[data-chart-filter-field="channel"]').count(), 0, "渠道作为分类维度时应移除重复渠道筛选");
   console.log("Excel 风格瀑布图台阶、连接线与配色验证通过。");
+}
+
+async function verifyChartCategorySelection(page) {
+  const range = await page.locator("#startDate").evaluate((start) => ({ min: start.min, max: start.max }));
+  await page.locator("#startDate").fill(range.min);
+  await page.locator("#endDate").fill(range.max);
+  await page.locator("#endDate").dispatchEvent("change");
+  await page.locator("#addChartCanvasBtn").click();
+  const card = page.locator("[data-chart-canvas-id]").last();
+  await card.locator('[data-chart-control="type"]').selectOption("bar");
+  await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="x"]').click();
+  const monthField = card.locator('[data-chart-axis-library="x"] [data-chart-field-key="month"]');
+  const hasMonthField = await monthField.count() > 0;
+  await (hasMonthField ? monthField : card.locator('[data-chart-axis-library="x"] [data-chart-field-key="date"]')).click();
+  await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="y"]').click();
+  await card.locator('[data-chart-axis-library="y"] [data-chart-field-key="newLead"]').click();
+  if (!hasMonthField) await card.locator('[data-chart-control="dateAggregation"]').selectOption("month");
+  const readChart = () => card.evaluate((element) => {
+    const chart = window.echarts.getInstanceByDom(element.querySelector("[id^='chartStudioCanvas-']"));
+    const option = chart?.getOption();
+    return { categories: option?.xAxis?.[0]?.data || [], values: option?.series?.[0]?.data || [] };
+  });
+  const all = await readChart();
+  assert.ok(all.categories.length > 1, "月份筛选回归应有多个月份候选");
+  await card.locator(".chart-category-picker > summary").click();
+  const options = await card.locator("[data-chart-category-value]").evaluateAll((inputs) => inputs.map((input) => input.dataset.chartCategoryValue));
+  await card.locator('[data-action="clear-chart-categories"]').click();
+  assert.match(await card.locator(".chart-category-empty-message").innerText(), /至少选择一个/);
+  await card.locator(`[data-chart-category-value="${options[0]}"]`).check();
+  await card.locator(`[data-chart-category-value="${options.at(-1)}"]`).check();
+  const expectedCategories = [all.categories[0], all.categories.at(-1)];
+  const expectedValues = [all.values[0], all.values.at(-1)];
+  assert.deepEqual(await readChart(), { categories: expectedCategories, values: expectedValues });
+  await card.locator('[data-chart-control="sort"]').selectOption("category-desc");
+  assert.deepEqual((await readChart()).categories, [...expectedCategories].reverse(), "排序只能改变顺序，不能改变所选月份");
+  await card.evaluate((element) => {
+    const chart = window.echarts.getInstanceByDom(element.querySelector("[id^='chartStudioCanvas-']"));
+    chart.getOption().toolbox[0].feature.myDataView.onclick();
+  });
+  assert.deepEqual(await card.locator(".chart-data-view-table tbody tr td:first-child").allTextContents(), [...expectedCategories].reverse());
+  const total = await card.locator(".chart-data-view-table tfoot td").last().innerText();
+  assert.equal(Number(total.replace(/,/g, "")), expectedValues.reduce((sum, value) => sum + Number(value), 0));
+  await card.locator('[data-action="toggle-chart-data-view"]').click();
+  if (!(await card.locator(".chart-category-picker").evaluate((picker) => picker.open))) {
+    await card.locator(".chart-category-picker > summary").click();
+  }
+  await card.locator("[data-chart-category-search]").fill("不会存在的月份");
+  assert.equal(await card.locator(".chart-category-option:visible").count(), 0);
+  assert.ok(await card.locator(".chart-category-no-match").isVisible());
+  await card.locator("[data-chart-category-search]").fill("");
+  await card.locator('[data-action="all-chart-categories"]').click();
+  assert.equal((await readChart()).categories.length, all.categories.length);
+  for (const dimension of ["channel", "region", "subregion"]) {
+    await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="x"]').click();
+    const field = card.locator(`[data-chart-axis-library="x"] [data-chart-field-key="${dimension}"]`);
+    if (!(await field.count())) {
+      await card.locator('[data-action="toggle-chart-axis-picker"][data-chart-axis="x"]').click();
+      continue;
+    }
+    await field.click();
+    assert.equal(await card.locator("[data-chart-category-picker]").count(), 1);
+    assert.equal(await card.locator(`[data-chart-filter-field="${dimension}"]`).count(), 0, `${dimension} 的分类选择和画布筛选应合并为一个入口`);
+    const combined = await readChart();
+    await card.locator('[data-chart-control="monthSplit"]').selectOption("month");
+    const monthly = await card.evaluate((element) => {
+      const option = window.echarts.getInstanceByDom(element.querySelector("[id^='chartStudioCanvas-']")).getOption();
+      return { categories: option.xAxis[0].data, series: option.series.map((series) => ({ name: series.name, data: series.data })) };
+    });
+    assert.deepEqual(monthly.categories, combined.categories);
+    assert.ok(monthly.series.length > 1, `${dimension} 应生成多个月份系列`);
+    combined.values.forEach((value, index) => {
+      assert.equal(monthly.series.reduce((sum, series) => sum + Number(series.data[index] || 0), 0), value, `${dimension} 各月之和应等于合并汇总`);
+    });
+    await card.locator("[data-chart-month-picker] > summary").click();
+    const firstMonth = await card.locator("[data-chart-month-value]").first().getAttribute("data-chart-month-value");
+    await card.locator('[data-action="clear-chart-months"]').click();
+    assert.match(await card.locator(".chart-category-empty-message").innerText(), /至少选择一个要展示的月份/);
+    await card.locator(`[data-chart-month-value="${firstMonth}"]`).check();
+    assert.equal(await card.evaluate((element) => window.echarts.getInstanceByDom(element.querySelector("[id^='chartStudioCanvas-']")).getOption().series.length), 1);
+    await card.locator('[data-action="all-chart-months"]').click();
+    await card.locator('[data-chart-control="monthSplit"]').selectOption("total");
+  }
+  await card.locator('[data-action="remove-chart-canvas"]').click();
+  console.log("图表月份多选、空选择、排序、数据表合计、同维度入口去重，以及渠道/大区/小区分月展示和月份筛选交互验证通过。");
 }
 
 async function verifyCostCalculator(page) {
@@ -423,6 +509,7 @@ async function main() {
     await verifyIntroGuide(page);
     await verifyMetricFunnelLayout(page);
     await verifyWaterfallChart(page);
+    await verifyChartCategorySelection(page);
     await verifyCostCalculator(page);
     await page.evaluate(() => { window.location.hash = "#model-drill?model=N7"; });
     await page.waitForURL(/#model-drill\?model=N7$/);
