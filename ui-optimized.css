@@ -653,15 +653,15 @@ body.ui-optimized {
 }
 
 .ui-optimized .hero .business-switch button[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(213, 0, 50, 0.45);
-  color: #9f0026;
-  box-shadow: 0 8px 24px rgba(213, 0, 50, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  background: rgba(160, 0, 38, 0.78);
+  border-color: rgba(160, 0, 38, 0.7);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(160, 0, 38, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .ui-optimized .hero .business-switch button[aria-pressed="true"]:not(:disabled):hover {
-  background: rgba(255, 255, 255, 0.24);
-  border-color: rgba(213, 0, 50, 0.6);
+  background: rgba(160, 0, 38, 0.86);
+  border-color: rgba(160, 0, 38, 0.85);
 }
 
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -680,7 +680,7 @@ body.ui-optimized {
 
   .ui-optimized .hero .business-switch button[aria-pressed="true"],
   .ui-optimized .hero .business-switch button[aria-pressed="true"]:not(:disabled):hover {
-    background: rgba(255, 255, 255, 0.88);
+    background: var(--brand-600);
   }
 }
 

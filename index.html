@@ -2546,7 +2546,6 @@
       .business-switch button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
       .business-switch button:focus-visible , .upload-business-panel .upload-drop-zone:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
       .business-switch button:disabled { opacity: 0.55; cursor: wait; }
-      .business-switch span { color: var(--text-muted); font-size: 12px; }
       .upload-dialog.upload-sectors-dialog { width: min(1140px, calc(100vw - 32px)); }
       .upload-sectors-dialog .upload-modal-body { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
       .upload-business-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
@@ -3032,7 +3031,7 @@
         .print-only { display: block; }
       }
     </style>
-    <link rel="stylesheet" href="ui-optimized.css?v=20261010-glass-2" />
+    <link rel="stylesheet" href="ui-optimized.css?v=20261010-glass-3" />
   </head>
   <body class="ui-optimized">
     <a class="ui-skip-link" href="#overviewSection">跳到主要内容</a>
@@ -3103,7 +3102,6 @@
                 <div class="business-switch" id="businessSwitch" role="group" aria-label="数据板块">
                   <button type="button" data-business="NEV" aria-pressed="true">NEV 新能源</button>
                   <button type="button" data-business="ICE" aria-pressed="false">ICE 燃油车</button>
-                  <span id="businessScopeNote">当前板块：NEV · 数据与设置独立</span>
                 </div>
                 <div class="source-note" id="sourceNote"></div>
                 <div class="compute-strip">
@@ -3952,7 +3950,6 @@
 
         const els = {
           businessSwitch: document.getElementById("businessSwitch"),
-          businessScopeNote: document.getElementById("businessScopeNote"),
           businessMonthControl: document.getElementById("businessMonthControl"),
           businessMonthSelect: document.getElementById("businessMonthSelect"),
           uploadMonth: document.getElementById("uploadMonth"),
@@ -11105,7 +11102,6 @@
             button.setAttribute("aria-pressed", String(button.dataset.business === state.business));
             button.disabled = state.resetting;
           });
-          els.businessScopeNote.textContent = `当前板块：${state.business} · 数据与设置独立${state.business === "ICE" ? " · 仅展示指定 7 个车型，全部车型参与汇总" : ""}`;
           els.resetData.textContent = `恢复 ${state.business} 默认`;
           els.resetData.disabled = isBusinessUploadRunning() || state.resetting;
           els.uploadTrigger.disabled = state.resetting;
