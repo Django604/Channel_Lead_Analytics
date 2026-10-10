@@ -488,6 +488,106 @@ async function verifyComparisonTrendStates(page) {
   console.log("车型分析同车型/跨车型双区间趋势与空对比范围展示验证通过。");
 }
 
+async function verifyOverviewCardLayout(page) {
+  const originalViewport = page.viewportSize();
+  try {
+    await page.waitForFunction(() => document.querySelectorAll('#overviewGrid .overview-card').length === 7);
+    await page.locator('#overviewGrid .overview-card').first().locator('[data-stage-id="stage_lock"]').click();
+    for (const width of [1440, 1000, 760, 375]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const layout = await page.evaluate(() => {
+        const axis = document.querySelector('#overviewGrid .overview-stage-axis');
+        const axisVisible = axis && getComputedStyle(axis).display !== 'none';
+        return {
+          axisRight: axisVisible ? axis.getBoundingClientRect().right : null,
+          cards: [...document.querySelectorAll('#overviewGrid .overview-card')].map((card) => {
+            const rect = card.getBoundingClientRect();
+            const selectedValue = card.querySelector('.stage-chip.is-selected .stage-track-value')?.textContent.trim();
+            return { model: card.dataset.model, left: rect.left, width: rect.width, scrollWidth: card.scrollWidth, clientWidth: card.clientWidth, selectedValue, footer: card.querySelector('.overview-foot span')?.textContent.trim() };
+          }),
+        };
+      });
+      assert.equal(layout.cards.length, 7);
+      const widths = layout.cards.map((card) => card.width);
+      assert.ok(Math.max(...widths) - Math.min(...widths) < 1.1, `${width}px 下所有车型卡片必须等宽：${widths.join(', ')}`);
+      for (const card of layout.cards) {
+        assert.ok(card.width >= 200, `${width}px 下 ${card.model} 卡片过窄：${card.width}px`);
+        assert.ok(card.scrollWidth <= card.clientWidth + 1, `${width}px 下 ${card.model} 内容溢出`);
+        if (layout.axisRight !== null) assert.ok(card.left > layout.axisRight, `${card.model} 不应进入阶段选择列`);
+        assert.ok(card.selectedValue && card.footer.endsWith(card.selectedValue), `${card.model} 漏斗阶段值与底部汇总应一致`);
+      }
+    }
+  } finally {
+    if (originalViewport) await page.setViewportSize(originalViewport);
+  }
+  console.log('ICE 7 个车型在桌面、平板和手机下等宽换行、阶段列隔离及漏斗汇总一致性验证通过。');
+}
+
+async function verifyBusinessSectorUi(page) {
+  const nev = await page.evaluate(() => ({
+    rows: document.getElementById("metaRowCount").textContent,
+    source: document.getElementById("sourceNote").textContent,
+    model: document.getElementById("modelSelect").value,
+    region: document.getElementById("regionSelect").value,
+  }));
+  const base64 = await page.evaluate(() => {
+    const workbook = XLSX.utils.book_new();
+    const rows = [
+      ["大区", "小区", "车系名称", "渠道", "大项目名", "媒体名称", "线索总量", "有效线索量", "到店量", "订单总量", "成交量", "总交车量"],
+      ["西区", "西一", "第七代天籁", "R6新媒体", "R5经销商", "直播", 10, 8, 5, 3, 2, 30],
+      ["东区", "东一", "探陆", "R6新媒体", "总部员工号", "直播", 20, 12, 6, 4, 3, 30],
+      ...["十五代轩逸", "轩逸", "第14代轩逸", "逍客", "奇骏", "新骐达"].map((model) => ["西区", "西一", model, "R3天网行动", "项目", "媒体", 100, 80, 20, 8, 6, 30]),
+    ];
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "ICE");
+    return XLSX.write(workbook, { bookType: "xlsx", type: "base64" });
+  });
+  await page.locator("#uploadTrigger").click();
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.locator("#iceUploadDropZone").click();
+  await (await fileChooserPromise).setFiles({
+    name: "ICE-2026-09.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(base64, "base64"),
+  });
+  await page.locator("#iceUploadStartBtn").click();
+  await page.waitForFunction(() => document.querySelector("#iceUploadFeedback .upload-feedback-title")?.textContent === "上传成功");
+  assert.equal(await page.locator('[data-business="NEV"]').getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator("#metaRowCount").textContent(), nev.rows);
+  await page.locator("#uploadModalClose").click();
+  await page.locator('[data-business="ICE"]').click();
+  assert.equal(await page.locator('[data-business="ICE"]').getAttribute("aria-pressed"), "true");
+  assert.match(await page.locator("#metaRowCount").textContent(), /8\s*行/);
+  assert.equal(await page.locator("#businessMonthSelect").inputValue(), "全部");
+  const ice = await page.evaluate(() => ({
+    models: [...document.getElementById("modelSelect").options].map((option) => option.value),
+    channels: [...document.getElementById("channelSelect").options].map((option) => option.value),
+    metrics: [...document.getElementById("areaMetricSelect").options].map((option) => option.value),
+  }));
+  assert.deepEqual(ice.models, ["全部", "十五代轩逸", "轩逸经典", "第14代轩逸", "P32S MC Refresh逍客", "P32R-e 奇骏经典", "P42R 探陆", "B12L 骐达"]);
+  assert.ok(ice.channels.includes("R10经销商新媒体")); assert.ok(ice.channels.includes("R11总部自媒体"));
+  assert.ok(!ice.metrics.includes("validTestDrive")); assert.ok(!ice.metrics.includes("delivery"));
+  await verifyOverviewCardLayout(page);
+  await page.evaluate(() => { window.location.hash = "#cost-calculator"; });
+  await page.waitForFunction(() => !document.getElementById("costCalculatorSection").classList.contains("is-hidden"));
+  assert.equal(await page.locator('[data-cost-method="CPTD"]').count(), 0);
+  assert.match(await page.locator('[data-cost-method="CPO"]').textContent(), /单个成交成本/);
+  await page.locator('[data-business="NEV"]').click();
+  const restored = await page.evaluate(() => ({
+    rows: document.getElementById("metaRowCount").textContent,
+    source: document.getElementById("sourceNote").textContent,
+    model: document.getElementById("modelSelect").value,
+    region: document.getElementById("regionSelect").value,
+  }));
+  assert.deepEqual(restored, nev);
+  await page.locator('[data-business="ICE"]').click();
+  assert.match(await page.locator("#metaRowCount").textContent(), /8\s*行/);
+  await page.locator("#resetData").click();
+  await page.waitForFunction(() => document.getElementById("metaRowCount").textContent === "0 行");
+  await page.locator('[data-business="NEV"]').click();
+  assert.equal(await page.locator("#metaRowCount").textContent(), nev.rows);
+  console.log("NEV/ICE 上传入口、清洗展示、指标去除、切换与独立恢复默认的浏览器交互验证通过。");
+}
+
 async function main() {
   const uploadFiles = process.argv.slice(2).map((filePath) => path.resolve(filePath));
   uploadFiles.forEach((filePath) => assert.ok(fs.existsSync(filePath), `文件不存在：${filePath}`));
@@ -524,6 +624,7 @@ async function main() {
       await page.locator("#uploadStartBtn").click();
       await page.locator("#uploadFeedback.is-success").waitFor({ timeout: 240000 });
       await page.waitForFunction(() => document.querySelector("#computeStatusText")?.textContent.includes("计算完成"));
+      await page.locator("#uploadModalClose").click();
     }
 
     const visibleModels = await page.locator("#modelSelect option").evaluateAll((options) =>
@@ -669,6 +770,7 @@ async function main() {
         assert.equal(stackedTotal, displayedTotal, `第 ${index + 1} 个大区的车型堆积合计应一致`);
       });
     }
+    await verifyBusinessSectorUi(page);
     assert.deepEqual(pageErrors, []);
     console.log("车型切换、探陆固定排除与区域车型堆积验证通过。");
   } finally {

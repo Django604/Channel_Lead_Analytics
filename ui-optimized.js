@@ -224,5 +224,6 @@
   document.addEventListener("pointerleave", () => setExpandedCompactMarker(null));
   window.addEventListener("blur", () => setExpandedCompactMarker(null));
   window.addEventListener("hashchange", applyNavigationContext);
+  window.addEventListener("businesschange", applyNavigationContext);
   applyNavigationContext();
 })();

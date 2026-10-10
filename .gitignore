@@ -12,6 +12,7 @@
 /scripts/*
 !/scripts/verify-model-focus.js
 !/scripts/verify-chart-categories.js
+!/scripts/verify-business-sectors.js
 !/图标库/
 
 /图标库/*

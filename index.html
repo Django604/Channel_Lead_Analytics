@@ -2066,6 +2066,7 @@
         grid-template-columns: 124px repeat(4, minmax(0, 1fr));
         gap: var(--space);
       }
+      .overview-grid > .overview-card:nth-of-type(4n + 1) { grid-column: 2; }
       .overview-stage-axis {
         display: grid;
         grid-template-rows: minmax(42px, auto) auto minmax(28px, auto);
@@ -2540,6 +2541,26 @@
       .drawer-body { padding: var(--space-md); display: grid; grid-template-columns: 1.05fr 0.95fr; gap: var(--space-md); min-height: 0; flex: 1; overflow: hidden; }
       .drawer-close-btn { color: var(--text); border-color: var(--border); }
 
+      .business-switch { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; align-items: center; }
+      .business-switch button { min-height: 44px; padding: 8px 20px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-weight: 800; cursor: pointer; }
+      .business-switch button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+      .business-switch button:focus-visible , .upload-business-panel .upload-drop-zone:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+      .business-switch button:disabled { opacity: 0.55; cursor: wait; }
+      .business-switch span { color: var(--text-muted); font-size: 12px; }
+      .upload-dialog.upload-sectors-dialog { width: min(1140px, calc(100vw - 32px)); }
+      .upload-sectors-dialog .upload-modal-body { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+      .upload-business-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+      .upload-business-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+      .upload-business-head h3 { margin: 0; font-size: 18px; }
+      .upload-business-head span, .upload-business-note { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+      .upload-business-panel .upload-drop-zone { min-height: 220px; padding: 20px 12px; }
+      .upload-business-panel .upload-drop-title { font-size: 16px; }
+      .upload-business-start { align-self: stretch; min-height: 44px; }
+      .upload-month-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+      .upload-month-control span { color: var(--text-muted); line-height: 1.6; }
+      .upload-month-control input { min-height: 44px; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
+      th[data-source-metric][hidden], #businessMonthControl[hidden] { display: none !important; }
+      @media (max-width: 720px) { .upload-sectors-dialog .upload-modal-body { grid-template-columns: minmax(0, 1fr); } }
       body.is-upload-modal-open { overflow: hidden; }
       .upload-modal {
         position: fixed;
@@ -2881,6 +2902,7 @@
         .control-grid, .metric-rail, .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .drill-shell { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); }
         .overview-grid { grid-template-columns: 124px repeat(2, minmax(0, 1fr)); }
+        .overview-grid > .overview-card:nth-of-type(2n + 1) { grid-column: 2; }
         .area-analysis-grid { grid-template-columns: 1fr; }
         .chart-builder-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         .chart-builder-controls.has-date-granularity { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2921,6 +2943,7 @@
         .meta-strip { min-width: 0; }
         .control-block, .control-block.control-short, .control-block.control-wide { flex: 1 1 100%; }
         .overview-stage-axis { display: none; }
+        .overview-grid > .overview-card:nth-of-type(2n + 1) { grid-column: auto; }
         .calendar-grid { gap: 4px; }
         .calendar-cell { padding: 4px; aspect-ratio: 1 / 0.95; }
         .alert-gantt-inner { min-width: var(--timeline-min-width, 668px); }
@@ -3009,7 +3032,7 @@
         .print-only { display: block; }
       }
     </style>
-    <link rel="stylesheet" href="ui-optimized.css" />
+    <link rel="stylesheet" href="ui-optimized.css?v=20261010-glass-2" />
   </head>
   <body class="ui-optimized">
     <a class="ui-skip-link" href="#overviewSection">跳到主要内容</a>
@@ -3077,6 +3100,11 @@
               <div>
                 <div class="hero-kicker">Dongfeng Nissan Lead Analytics</div>
                 <h1>东风日产渠道线索分析工作台</h1>
+                <div class="business-switch" id="businessSwitch" role="group" aria-label="数据板块">
+                  <button type="button" data-business="NEV" aria-pressed="true">NEV 新能源</button>
+                  <button type="button" data-business="ICE" aria-pressed="false">ICE 燃油车</button>
+                  <span id="businessScopeNote">当前板块：NEV · 数据与设置独立</span>
+                </div>
                 <div class="source-note" id="sourceNote"></div>
                 <div class="compute-strip">
                   <div class="capsule" id="computeStatus">
@@ -3133,6 +3161,10 @@
                 <label for="modelSelect">车型聚焦</label>
                 <select id="modelSelect"></select>
               </div>
+              <div class="control-block" id="businessMonthControl" hidden>
+                <label for="businessMonthSelect">分析月份</label>
+                <select id="businessMonthSelect"></select>
+              </div>
               <div class="action-block">
                 <div class="action-label">分析操作</div>
                 <div class="action-buttons">
@@ -3147,7 +3179,6 @@
                   <button class="btn btn-subtle" id="uploadTrigger">上传 Excel</button>
                   <button class="btn btn-ghost" id="resetData">恢复默认</button>
                   <button class="btn btn-ghost" id="downloadPdf">导出 PDF</button>
-                  <input class="file-input" id="fileInput" type="file" accept=".xlsx,.xls" multiple />
                 </div>
               </div>
             </div>
@@ -3240,15 +3271,15 @@
                   <tr>
                     <th>小区</th>
                     <th>所属大区</th>
-                    <th>新增线索量</th>
+                    <th data-metric-label="newLead">新增线索量</th>
                     <th>有效线索量</th>
                     <th>有效率</th>
-                    <th>新增到店量</th>
-                    <th>有效试驾量</th>
-                    <th>大定量</th>
-                    <th>锁单量</th>
-                    <th>交车量</th>
-                    <th>线索锁单率</th>
+                    <th data-metric-label="newStoreVisit">新增到店量</th>
+                    <th data-source-metric="validTestDrive">有效试驾量</th>
+                    <th data-metric-label="bigOrder">大定量</th>
+                    <th data-metric-label="lockOrder">锁单量</th>
+                    <th data-source-metric="delivery">交车量</th>
+                    <th data-metric-label="leadToLockRate">线索锁单率</th>
                   </tr>
                 </thead>
                 <tbody id="subregionTableBody"></tbody>
@@ -3266,15 +3297,15 @@
               <thead>
                 <tr>
                   <th>渠道</th>
-                  <th>新增线索量</th>
+                  <th data-metric-label="newLead">新增线索量</th>
                   <th>有效线索量</th>
                   <th>有效率</th>
-                  <th>新增到店量</th>
-                  <th>有效试驾量</th>
-                  <th>大定量</th>
-                  <th>锁单量</th>
-                  <th>交车量</th>
-                  <th>线索锁单率</th>
+                  <th data-metric-label="newStoreVisit">新增到店量</th>
+                  <th data-source-metric="validTestDrive">有效试驾量</th>
+                  <th data-metric-label="bigOrder">大定量</th>
+                  <th data-metric-label="lockOrder">锁单量</th>
+                  <th data-source-metric="delivery">交车量</th>
+                  <th data-metric-label="leadToLockRate">线索锁单率</th>
                 </tr>
               </thead>
               <tbody id="areaChannelTableBody"></tbody>
@@ -3435,10 +3466,10 @@
                     <th>名称</th>
                     <th>层级</th>
                     <th id="drillActiveStageHeader">当前指标</th>
-                    <th>新增线索量</th>
-                    <th>锁单量</th>
-                    <th>交车量</th>
-                    <th>试驾锁单率</th>
+                    <th data-metric-label="newLead">新增线索量</th>
+                    <th data-metric-label="lockOrder">锁单量</th>
+                    <th data-source-metric="delivery">交车量</th>
+                    <th data-source-metric="validTestDrive">试驾锁单率</th>
                     <th id="drillCostHeader">成本</th>
                     <th>操作</th>
                   </tr>
@@ -3502,30 +3533,45 @@
     </aside>
 
     <div class="upload-modal" id="uploadModal" aria-hidden="true">
-      <div class="upload-dialog" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+      <div class="upload-dialog upload-sectors-dialog" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
         <div class="upload-modal-head">
           <div>
             <div class="upload-modal-kicker">Local Excel Import</div>
             <h2 class="upload-modal-title" id="uploadModalTitle">上传 Excel 数据</h2>
-            <p class="upload-modal-note">可分多次选择或拖入同级数据，后续文件会继续追加，多份文件需要使用相同表头。</p>
+            <p class="upload-modal-note">NEV 与 ICE 分开上传、分别保存；每个入口内可合并多份同级数据，不会替换另一个板块。</p>
           </div>
           <button class="btn btn-ghost" id="uploadModalClose" type="button">关闭</button>
         </div>
         <div class="upload-modal-body">
-          <div class="upload-drop-zone" id="uploadDropZone" role="button" tabindex="0" aria-label="选择或拖入 Excel 文件">
-            <span class="upload-drop-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" /></svg>
-            </span>
-            <span class="upload-drop-title" id="uploadDropTitle">拖拽一份或多份同级数据到这里</span>
-            <span class="upload-drop-meta" id="uploadDropMeta">支持 .xlsx / .xls；系统按表头名称识别字段，不依赖固定列位置。</span>
-            <span class="upload-drop-action" id="uploadDropAction">点击选择文件</span>
-          </div>
-          <div class="upload-feedback" id="uploadFeedback" aria-live="polite"></div>
+          <section class="upload-business-panel" id="nevUploadPanel" data-upload-panel="NEV" aria-labelledby="nevUploadHeading">
+            <div class="upload-business-head"><h3 id="nevUploadHeading">NEV 新能源</h3><span data-business-upload-status="NEV">尚未上传</span></div>
+            <p class="upload-business-note">按现有 NEV 口径识别与清洗。</p>
+            <input class="file-input" id="fileInput" type="file" accept=".xlsx,.xls" multiple aria-label="选择 NEV Excel 文件" />
+            <div class="upload-drop-zone" id="uploadDropZone" role="button" tabindex="0" aria-label="选择或拖入 NEV Excel 文件">
+              <span class="upload-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" /></svg></span>
+              <span class="upload-drop-title" id="uploadDropTitle">拖入 NEV Excel</span>
+              <span class="upload-drop-meta" id="uploadDropMeta">支持 .xlsx / .xls，可选择多份同级数据。</span>
+              <span class="upload-drop-action" id="uploadDropAction">点击选择 NEV 文件</span>
+            </div>
+            <div class="upload-feedback" id="uploadFeedback" aria-live="polite"></div>
+            <button class="btn btn-primary upload-business-start" id="uploadStartBtn" type="button" disabled>上传 NEV 数据</button>
+          </section>
+          <section class="upload-business-panel" id="iceUploadPanel" data-upload-panel="ICE" aria-labelledby="iceUploadHeading">
+            <div class="upload-business-head"><h3 id="iceUploadHeading">ICE 燃油车</h3><span data-business-upload-status="ICE">尚未上传</span></div>
+            <p class="upload-business-note">车型与渠道按 ICE 知识库匹配，成交量独立统计。</p>
+            <input class="file-input" id="iceFileInput" type="file" accept=".xlsx,.xls" multiple aria-label="选择 ICE Excel 文件" />
+            <div class="upload-drop-zone" id="iceUploadDropZone" role="button" tabindex="0" aria-label="选择或拖入 ICE Excel 文件">
+              <span class="upload-drop-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" /></svg></span>
+              <span class="upload-drop-title" id="iceUploadDropTitle">拖入 ICE Excel</span>
+              <span class="upload-drop-meta" id="iceUploadDropMeta">支持 .xlsx / .xls，可选择多份同级数据。</span>
+              <span class="upload-drop-action" id="iceUploadDropAction">点击选择 ICE 文件</span>
+            </div>
+            <label class="upload-month-control" for="uploadMonth">无时间列时的月份 <input type="month" id="uploadMonth" /><span>留空时从文件名识别，已有日期 / 年月列优先。</span></label>
+            <div class="upload-feedback" id="iceUploadFeedback" aria-live="polite"></div>
+            <button class="btn btn-primary upload-business-start" id="iceUploadStartBtn" type="button" disabled>上传 ICE 数据</button>
+          </section>
         </div>
-        <div class="upload-modal-foot">
-          <button class="btn btn-ghost" id="uploadModalCancel" type="button">取消</button>
-          <button class="btn btn-primary" id="uploadStartBtn" type="button" disabled>开始上传</button>
-        </div>
+        <div class="upload-modal-foot"><button class="btn btn-ghost" id="uploadModalCancel" type="button">关闭</button></div>
       </div>
     </div>
 
@@ -3714,6 +3760,36 @@
           ...DATASET_DIMENSION_FIELDS,
           ...DATASET_METRIC_FIELDS,
         ];
+        const ICE_MODEL_NAMES = {
+          "全新一代奇骏": "P33A EP超混电驱奇骏", "全新天籁": "L42P 天籁",
+          "全新第三代逍客": "P33B 新逍客", "劲客": "P02F 劲客",
+          "轩逸": "轩逸经典", "轩逸经典": "轩逸经典", "逍客": "P32S MC Refresh逍客",
+          "天籁": "L42P 天籁", "奇骏": "P32R-e 奇骏经典", "探陆": "P42R 探陆",
+          "新生代骐达": "B12L 骐达", "新逍客": "P32S MC Refresh逍客", "新骐达": "B12L 骐达",
+          "第14代轩逸": "第14代轩逸", "第七代天籁": "L42P 天籁", "老天籁": "L42P 天籁", "十五代轩逸": "十五代轩逸",
+        };
+        const ICE_DISPLAY_MODELS = [
+          "十五代轩逸", "轩逸经典", "第14代轩逸", "P32S MC Refresh逍客",
+          "P32R-e 奇骏经典", "P42R 探陆", "B12L 骐达",
+        ];
+        const ICE_METRIC_HEADERS = {
+          newLead: ["线索总量", "新增线索量"], validLead: ["有效线索量"],
+          newStoreVisit: ["到店量", "新增到店量"], bigOrder: ["订单总量", "大定量"],
+          lockOrder: ["成交量", "锁单量"], delivery: ["交车量"],
+        };
+        const ICE_METRIC_LABELS = { newLead: "线索总量", newStoreVisit: "到店量", bigOrder: "订单总量", lockOrder: "成交量" };
+        const NEV_METRIC_LABELS = Object.fromEntries(Object.entries(METRICS).map(([key, metric]) => [key, metric.label]));
+        const NEV_CALCULATED_LABELS = Object.fromEntries(Object.entries(CHART_STUDIO_CALCULATED_METRICS).map(([key, metric]) => [key, metric.label]));
+        const BUSINESS_WORKSPACE_KEYS = [
+          "view", "stageConfigs", "editorStageId", "compareEnabled", "overviewCollapsed", "overviewMode", "dimensionMode",
+          "dealerFocus", "costCalculator", "chartStudioSerial", "chartCanvases", "channelMatrixStartDate", "channelMatrixEndDate",
+          "expandedDetailProjects", "alertDrill", "drill",
+        ];
+        const BUSINESS_CONTROL_KEYS = [
+          "startDate", "endDate", "compareStartDate", "compareEndDate", "regionSelect", "subregionSelect", "channelSelect",
+          "modelSelect", "areaMetricSelect", "overviewDateSelect", "surgeThresholdSelect", "businessMonthSelect",
+          "channelMatrixStartDate", "channelMatrixEndDate",
+        ];
         const HEADER_SCAN_LIMIT = 20;
         const HEADER_DEPTH_LIMIT = 3;
 
@@ -3811,6 +3887,9 @@
 
         const state = {
           dataset: null,
+          business: "NEV",
+          resetting: false,
+          businesses: { NEV: { decoded: null, workspace: null, upload: null }, ICE: { decoded: null, workspace: null, upload: null } },
           sourceLabel: "默认预构建数据",
           charts: {},
           view: "home",
@@ -3819,11 +3898,6 @@
           compareEnabled: false,
           drawerOpen: false,
           uploadModalOpen: false,
-          pendingUploadFiles: [],
-          uploadStatus: "idle",
-          uploadSummary: "",
-          uploadError: "",
-          uploadFileResults: [],
           guideOpen: false,
           guideShown: false,
           guideStep: 0,
@@ -3874,7 +3948,14 @@
           drill: createDefaultDrill(),
         };
 
+        const initialBusinessWorkspace = structuredClone(Object.fromEntries(BUSINESS_WORKSPACE_KEYS.map((key) => [key, state[key]])));
+
         const els = {
+          businessSwitch: document.getElementById("businessSwitch"),
+          businessScopeNote: document.getElementById("businessScopeNote"),
+          businessMonthControl: document.getElementById("businessMonthControl"),
+          businessMonthSelect: document.getElementById("businessMonthSelect"),
+          uploadMonth: document.getElementById("uploadMonth"),
           startDate: document.getElementById("startDate"),
           endDate: document.getElementById("endDate"),
           compareStartDate: document.getElementById("compareStartDate"),
@@ -4156,9 +4237,18 @@
           return (values || []).filter((item) => !isEmptyDimensionValue(item));
         }
 
+        function isDisplayedModel(model) {
+          return state.business !== "ICE" || ICE_DISPLAY_MODELS.includes(model);
+        }
+
+        function getDisplayedModels() {
+          const available = getVisibleDimensionValues(state.dataset.models);
+          return state.business === "ICE" ? ICE_DISPLAY_MODELS.filter((model) => available.includes(model)) : available;
+        }
+
         function formatDimensionValue(dimensionKey, value) {
           if (isEmptyDimensionValue(value)) return "";
-          if (dimensionKey === "channel") return CHANNEL_DISPLAY_NAMES[value] || value;
+          if (dimensionKey === "channel") return Object.prototype.hasOwnProperty.call(CHANNEL_DISPLAY_NAMES, value) ? CHANNEL_DISPLAY_NAMES[value] : value;
           if (dimensionKey === "month") return formatChartStudioMonth(value);
           return value;
         }
@@ -4290,7 +4380,7 @@
         }
 
         function syncFocusedModel(model, resetDependentDrill = false) {
-          const nextModel = model || "全部";
+          const nextModel = model && isDisplayedModel(model) ? model : "全部";
           if (resetDependentDrill) {
             const stageId = state.drill.stageId || getCurrentStageId();
             state.drill = { ...createDefaultDrill(), stageId, model: nextModel };
@@ -4337,7 +4427,7 @@
           const { view, params } = parseRouteHash();
           if (view === "model-drill") {
             const model = params.get("model") || "";
-            if (model === "全部" || state.dataset.models.includes(model)) {
+            if (model === "全部" || getDisplayedModels().includes(model)) {
               const modelChanged = state.view !== "model-drill" || state.drill.model !== model;
               state.view = "model-drill";
               syncFocusedModel(model, modelChanged);
@@ -4409,7 +4499,7 @@
 
         function getMetricStageKeys() {
           const used = new Set(state.stageConfigs.map((item) => item.expression));
-          return Object.keys(METRICS).filter((key) => !used.has(key));
+          return Object.keys(METRICS).filter((key) => !used.has(key) && isMetricAvailable(key));
         }
 
         function getStageDragShapeWidth(index, total) {
@@ -4508,12 +4598,63 @@
           return result;
         }
 
+        function getDatasetHeaderFields(business = "NEV") {
+          if (business !== "ICE") return DATASET_HEADER_FIELDS;
+          const aliases = { group: ["集团名称", "集团"], dealer: ["专营店名称", "专营店"], model: ["车系名称", "意向基准车系", "车系", "车型"] };
+          return [
+            ...DATASET_DIMENSION_FIELDS.map((field) => ({ ...field, headers: aliases[field.key] || field.headers })),
+            ...DATASET_METRIC_FIELDS.filter((field) => ICE_METRIC_HEADERS[field.key]).map((field) => ({ ...field, headers: ICE_METRIC_HEADERS[field.key] })),
+            { key: "dealerDeliveryTotal", label: "总交车量", headers: ["总交车量"] },
+          ];
+        }
+
+        function getRequiredMetricKeys(business = "NEV") {
+          return business === "ICE" ? ["newLead", "validLead", "newStoreVisit", "bigOrder", "lockOrder"] : [...REQUIRED_DATASET_METRIC_KEYS];
+        }
+
+        function getUploadMonth(fileName, override = "") {
+          if (/^\d{4}-(0[1-9]|1[0-2])$/.test(override)) return override;
+          const match = String(fileName).match(/(?:^|\D)(20\d{2})[-_年.](0?[1-9]|1[0-2])(?=[^\d]|$)/);
+          return match ? `${match[1]}-${match[2].padStart(2, "0")}` : "";
+        }
+
+        function cleanUploadedModel(value, business = "NEV") {
+          const model = String(value || "").trim();
+          return business === "ICE" && Object.hasOwn(ICE_MODEL_NAMES, model) ? ICE_MODEL_NAMES[model] : model;
+        }
+
+        function isMetricAvailable(key) {
+          const metric = CHART_STUDIO_CALCULATED_METRICS[key];
+          if (metric) return isMetricAvailable(metric.numerator) && isMetricAvailable(metric.denominator);
+          return (state.dataset?.availableMetrics || AREA_METRIC_KEYS).includes(key);
+        }
+
+        function getAreaMetricKeys() { return AREA_METRIC_KEYS.filter(isMetricAvailable); }
+
+        function getDealerFocusRows() {
+          return DEALER_FOCUS_ROWS.filter((row) => isMetricAvailable(row.key)).map((row) => ({
+            ...row, label: state.business === "ICE" ? CHART_STUDIO_METRICS[row.key]?.label || row.label : row.label,
+          }));
+        }
+
+        function getBusinessDefaultStages() {
+          return DEFAULT_STAGES.filter((stage) => isMetricAvailable(stage.expression)).map((stage) => ({
+            ...stage, name: state.business === "ICE" ? METRICS[stage.expression].label : stage.name,
+          }));
+        }
+
+        function applyBusinessMetricLabels() {
+          Object.entries(METRICS).forEach(([key, metric]) => { metric.label = state.business === "ICE" ? ICE_METRIC_LABELS[key] || NEV_METRIC_LABELS[key] : NEV_METRIC_LABELS[key]; });
+          Object.entries(CHART_STUDIO_CALCULATED_METRICS).forEach(([key, metric]) => { metric.label = state.business === "ICE" ? NEV_CALCULATED_LABELS[key].replace("锁单", "成交") : NEV_CALCULATED_LABELS[key]; });
+        }
+
         function isDefaultExcludedModel(model) {
           const modelName = String(model || "").trim();
           return DEFAULT_EXCLUDED_MODEL_KEYWORDS.some((keyword) => modelName.includes(keyword));
         }
 
         function applyDefaultDatasetFilters(dataset) {
+          if (dataset.business === "ICE") return { ...dataset, sourceRowCount: dataset.sourceRowCount ?? dataset.rowCount, defaultExcludedRowCount: 0, defaultExcludedModels: [] };
           const modelColumnIndex = dataset.schemaIndex.modelId;
           const sourceRows = dataset.rows || [];
           const sourceRowCount = Number(dataset.sourceRowCount ?? dataset.rowCount ?? sourceRows.length);
@@ -4565,12 +4706,13 @@
             .map((field) => field.key);
           const availableDimensions = raw.availableDimensions || inferredDimensions;
           const completeDimensions = raw.completeDimensions || availableDimensions;
-          const fallbackCosts = window.REPORT_DATA?.costs || {};
+          const fallbackCosts = raw.business === "ICE" ? {} : window.REPORT_DATA?.costs || {};
           const dimensionValues = Object.fromEntries(
             DATASET_DIMENSION_FIELDS.map((field) => [field.valuesKey, raw[field.valuesKey] || ["(空)"]])
           );
           const normalizedDataset = {
             ...raw,
+            business: raw.business || "NEV",
             ...dimensionValues,
             availableDimensions,
             completeDimensions,
@@ -4580,13 +4722,30 @@
             costs: raw.costs || fallbackCosts,
             schemaIndex,
           };
+          if (normalizedDataset.business === "ICE" && schemaIndex.channelId != null) {
+            // Merge legacy aliases before filtering or grouping cached ICE rows.
+            const channelNames = new Map();
+            const channelIds = normalizedDataset.channels.map((channel) => {
+              const name = Object.prototype.hasOwnProperty.call(CHANNEL_DISPLAY_NAMES, channel) ? CHANNEL_DISPLAY_NAMES[channel] : channel;
+              if (!channelNames.has(name)) channelNames.set(name, channelNames.size);
+              return channelNames.get(name);
+            });
+            normalizedDataset.channels = [...channelNames.keys()];
+            normalizedDataset.rows = normalizedDataset.rows.map((row) => {
+              const channelId = channelIds[row[schemaIndex.channelId]];
+              if (channelId == null || channelId === row[schemaIndex.channelId]) return row;
+              const normalizedRow = [...row];
+              normalizedRow[schemaIndex.channelId] = channelId;
+              return normalizedRow;
+            });
+          }
           return { raw: applyDefaultDatasetFilters(normalizedDataset), sourceLabel };
         }
 
         function formatAnalysisRange(startDate, endDate) {
           return hasUsableDateDimension() && startDate && endDate
             ? `${startDate} ~ ${endDate}`
-            : "全部数据（无日期维度）";
+            : hasDatasetDimension("month") ? `${els.businessMonthSelect?.value && els.businessMonthSelect.value !== "全部" ? formatChartStudioMonth(els.businessMonthSelect.value) : "全部月份"}（月度数据）` : "全部数据（无日期维度）";
         }
 
         function hasDatasetDimension(dimensionKey) {
@@ -4629,13 +4788,13 @@
           });
         }
 
-        async function readDatasetCache() {
+        async function readDatasetCache(business = "NEV") {
           const db = await openDatasetCache();
           if (!db) return null;
           return new Promise((resolve, reject) => {
             const transaction = db.transaction(DATASET_CACHE_STORE, "readonly");
             const store = transaction.objectStore(DATASET_CACHE_STORE);
-            const request = store.get(DATASET_CACHE_KEY);
+            const request = store.get(business === "ICE" ? "latest-upload-ICE" : DATASET_CACHE_KEY);
             request.onsuccess = () => resolve(request.result || null);
             request.onerror = () => reject(request.error || new Error("读取本地数据失败"));
             transaction.oncomplete = () => db.close();
@@ -4646,7 +4805,7 @@
           });
         }
 
-        async function saveDatasetCache(raw, sourceLabel) {
+        async function saveDatasetCache(raw, sourceLabel, business = raw.business || "NEV") {
           if (!isDatasetUsable(raw)) return;
           const db = await openDatasetCache();
           if (!db) return;
@@ -4660,7 +4819,7 @@
                 cleaningVersion: DATASET_CLEANING_VERSION,
                 savedAt: new Date().toISOString(),
               },
-              DATASET_CACHE_KEY
+              business === "ICE" ? "latest-upload-ICE" : DATASET_CACHE_KEY
             );
             transaction.oncomplete = () => {
               db.close();
@@ -4673,13 +4832,13 @@
           });
         }
 
-        async function clearDatasetCache() {
+        async function clearDatasetCache(business = "NEV") {
           const db = await openDatasetCache();
           if (!db) return;
           return new Promise((resolve, reject) => {
             const transaction = db.transaction(DATASET_CACHE_STORE, "readwrite");
             const store = transaction.objectStore(DATASET_CACHE_STORE);
-            store.delete(DATASET_CACHE_KEY);
+            store.delete(business === "ICE" ? "latest-upload-ICE" : DATASET_CACHE_KEY);
             transaction.oncomplete = () => {
               db.close();
               resolve();
@@ -4704,7 +4863,7 @@
           return value == null ? "" : String(value).replace(/\u3000/g, " ").replace(/\s+/g, "");
         }
 
-        function buildHeaderIndex(rows, start, end) {
+        function buildHeaderIndex(rows, start, end, business = "NEV") {
           const maxColumns = Math.max(0, ...rows.slice(start, end + 1).map((row) => row.length));
           const index = {};
           for (let column = 0; column < maxColumns; column += 1) {
@@ -4713,7 +4872,7 @@
               const name = normalizeHeaderName(rows[rowIndex]?.[column]);
               if (name) names.add(name);
             }
-            DATASET_HEADER_FIELDS.forEach((field) => {
+            getDatasetHeaderFields(business).forEach((field) => {
               if (index[field.key] != null) return;
               if (field.headers.some((header) => names.has(normalizeHeaderName(header)))) {
                 index[field.key] = column;
@@ -4723,15 +4882,15 @@
           return index;
         }
 
-        function findHeaderLayout(rows) {
+        function findHeaderLayout(rows, business = "NEV") {
           const scanLimit = Math.min(rows.length, HEADER_SCAN_LIMIT);
           for (let end = 0; end < scanLimit; end += 1) {
             const matches = [];
             const maxDepth = Math.min(HEADER_DEPTH_LIMIT, end + 1);
             for (let depth = 1; depth <= maxDepth; depth += 1) {
               const start = end - depth + 1;
-              const fieldIndex = buildHeaderIndex(rows, start, end);
-              const hasRequiredMetrics = [...REQUIRED_DATASET_METRIC_KEYS].every((key) => fieldIndex[key] != null);
+              const fieldIndex = buildHeaderIndex(rows, start, end, business);
+              const hasRequiredMetrics = getRequiredMetricKeys(business).every((key) => fieldIndex[key] != null);
               if (!hasRequiredMetrics) continue;
               const dimensionCount = DATASET_DIMENSION_FIELDS.filter((field) => fieldIndex[field.key] != null).length;
               matches.push({
@@ -4749,13 +4908,11 @@
           return null;
         }
 
-        function getRequiredMetricLabels() {
-          return DATASET_METRIC_FIELDS
-            .filter((field) => REQUIRED_DATASET_METRIC_KEYS.has(field.key))
-            .map((field) => field.label);
+        function getRequiredMetricLabels(business = "NEV") {
+          return getRequiredMetricKeys(business).map((key) => business === "ICE" ? ICE_METRIC_LABELS[key] || METRICS[key]?.label || key : METRICS[key]?.label || key);
         }
 
-        function findSourceTable(workbook) {
+        function findSourceTable(workbook, business = "NEV") {
           const checkedSheets = [];
           for (const sheetName of workbook.SheetNames) {
             const sheet = workbook.Sheets[sheetName];
@@ -4766,7 +4923,7 @@
               continue;
             }
 
-            const layout = findHeaderLayout(rows);
+            const layout = findHeaderLayout(rows, business);
             if (layout) {
               return {
                 sheetName,
@@ -4778,7 +4935,7 @@
             checkedSheets.push(`${sheetName}：未识别到完整表头`);
           }
 
-          throw new Error(`上传文件未找到线索明细表，请确认至少包含：${getRequiredMetricLabels().join("、")}。已检查：${checkedSheets.join("；")}`);
+          throw new Error(`上传文件未找到线索明细表，请确认至少包含：${getRequiredMetricLabels(business).join("、")}。已检查：${checkedSheets.join("；")}`);
         }
 
         function decodeXmlEntities(text) {
@@ -4866,11 +5023,20 @@
           return row;
         }
 
-        function cleanUploadedChannel(originalChannel, projectName, mediaName) {
+        function cleanUploadedChannel(originalChannel, projectName, mediaName, business = "NEV") {
           const channel = originalChannel == null ? "" : String(originalChannel).trim();
           const project = projectName == null ? "" : String(projectName).trim();
           const media = mediaName == null ? "" : String(mediaName).trim();
 
+          if (business === "ICE") {
+            // Excel COUNTIFS is case-insensitive; preserve the formula's priority.
+            const matches = (value, terms) => terms.some((term) => value.toLowerCase().includes(term.toLowerCase()));
+            if (matches(project, ["总部员工号", "N6女团", "天籁福利社", "ysy"]) || matches(media, ["总部自媒体"])) return "R11总部自媒体";
+            const newMedia = matches(channel, ["新媒体", "R6"]);
+            if (newMedia && matches(project, ["R5", "经销商", "D直播"])) return "R10经销商新媒体";
+            if (newMedia) return "R6总部新媒体";
+            return originalChannel;
+          }
           if (channel.includes("R8")) {
             return project.includes("商超") ? "R8商超" : "R8车巡展";
           }
@@ -4883,7 +5049,14 @@
           return originalChannel;
         }
 
-        function createDatasetBuilder(fileName, sheetName, headerIndex, headerRows = []) {
+        function createDatasetBuilder(fileName, sheetName, headerIndex, headerRows = [], options = {}) {
+          const business = options.business || "NEV";
+          const inferredMonth = business === "ICE" && headerIndex.date == null && headerIndex.month == null ? getUploadMonth(fileName, options.month) : "";
+          if (business === "ICE" && headerIndex.date == null && headerIndex.month == null && !inferredMonth) throw new Error(`${fileName} 未提供日期/年月，且文件名无法识别月份，请在 ICE 上传区指定月份`);
+          const effectiveDimensionKeys = new Set(DATASET_DIMENSION_FIELDS.filter((field) => headerIndex[field.key] != null).map((field) => field.key));
+          if (inferredMonth) effectiveDimensionKeys.add("month");
+          let cleanedModelRows = 0;
+          const unmatchedModels = new Set();
           const dimensions = Object.fromEntries(DATASET_DIMENSION_FIELDS.map((field) => [field.valuesKey, []]));
           const maps = Object.fromEntries(DATASET_DIMENSION_FIELDS.map((field) => [field.valuesKey, new Map()]));
           const encodedRows = [];
@@ -4904,7 +5077,7 @@
           }
 
           function hasMappedValue(row) {
-            return DATASET_HEADER_FIELDS.some((field) => normalizeHeaderName(getFieldValue(row, field.key)));
+            return getDatasetHeaderFields(business).some((field) => normalizeHeaderName(getFieldValue(row, field.key)));
           }
 
           function getId(group, value) {
@@ -4947,11 +5120,11 @@
 
           function toMonthString(value) {
             if (value == null || value === "") return null;
+            const text = String(value).trim();
+            const compactMonth = /^(\d{4})(0[1-9]|1[0-2])$/.exec(text);
+            if (compactMonth) return `${compactMonth[1]}-${compactMonth[2]}`;
             const dateValue = toDateString(value);
             if (/^\d{4}-\d{2}/.test(dateValue || "")) return dateValue.slice(0, 7);
-            const text = String(value).trim();
-            const compactMonth = /^(\d{4})(\d{2})$/.exec(text);
-            if (compactMonth) return `${compactMonth[1]}-${compactMonth[2]}`;
             const calendarMonth = /^(\d{4})\D+(\d{1,2})(?:\D|$)/.exec(text);
             return calendarMonth ? `${calendarMonth[1]}-${calendarMonth[2].padStart(2, "0")}` : text;
           }
@@ -4973,18 +5146,24 @@
             if (dateValue && (!dateMax || dateValue > dateMax)) dateMax = dateValue;
             const originalChannel = getFieldValue(row, "channel");
             const cleanedChannel = channelCleaningApplied
-              ? cleanUploadedChannel(originalChannel, getFieldValue(row, "project"), getFieldValue(row, "media"))
+              ? cleanUploadedChannel(originalChannel, getFieldValue(row, "project"), getFieldValue(row, "media"), business)
               : originalChannel;
             if (normalizeHeaderName(cleanedChannel) !== normalizeHeaderName(originalChannel)) cleanedChannelRows += 1;
+
+            const originalModel = String(getFieldValue(row, "model") || "").trim();
+            const cleanedModel = cleanUploadedModel(originalModel, business);
+            if (cleanedModel !== originalModel) cleanedModelRows += 1;
+            if (business === "ICE" && originalModel && !Object.hasOwn(ICE_MODEL_NAMES, originalModel) && !Object.values(ICE_MODEL_NAMES).includes(originalModel)) unmatchedModels.add(originalModel);
 
             encodedRows.push([
               ...DATASET_DIMENSION_FIELDS.map((field) => {
                 const value = field.key === "date"
                   ? dateValue
                   : field.key === "month"
-                    ? toMonthString(getFieldValue(row, field.key))
+                    ? toMonthString(getFieldValue(row, field.key)) || inferredMonth
                     : field.key === "channel"
                       ? cleanedChannel
+                    : field.key === "model" ? cleanedModel
                     : getFieldValue(row, field.key);
                 return getId(field.valuesKey, value);
               }),
@@ -4998,6 +5177,12 @@
             }
             return {
               generatedAt: new Date().toISOString(),
+              business,
+              inferredMonth,
+              modelCleaningApplied: business === "ICE" && headerIndex.model != null,
+              cleanedModelRows,
+              unmatchedModels: [...unmatchedModels],
+              ignoredRepeatedDelivery: business === "ICE" && headerIndex.delivery == null && headerIndex.dealerDeliveryTotal != null,
               sourceFile: fileName,
               sourceFiles: [fileName],
               sourceSheet: sheetName,
@@ -5008,10 +5193,10 @@
               cleanedChannelRows,
               headerRows,
               availableDimensions: DATASET_DIMENSION_FIELDS
-                .filter((field) => headerIndex[field.key] != null)
+                .filter((field) => effectiveDimensionKeys.has(field.key))
                 .map((field) => field.key),
               missingDimensions: DATASET_DIMENSION_FIELDS
-                .filter((field) => headerIndex[field.key] == null)
+                .filter((field) => !effectiveDimensionKeys.has(field.key))
                 .map((field) => field.key),
               availableMetrics: DATASET_METRIC_FIELDS
                 .filter((field) => headerIndex[field.key] != null)
@@ -5030,8 +5215,8 @@
           return { addRow, finish };
         }
 
-        function buildDatasetFromRows(fileName, sheetName, rows, headerIndex, headerRows) {
-          const builder = createDatasetBuilder(fileName, sheetName, headerIndex, headerRows);
+        function buildDatasetFromRows(fileName, sheetName, rows, headerIndex, headerRows, options = {}) {
+          const builder = createDatasetBuilder(fileName, sheetName, headerIndex, headerRows, options);
           rows.forEach((row) => builder.addRow(row));
           return builder.finish();
         }
@@ -5047,7 +5232,8 @@
           }));
         }
 
-        async function buildDatasetFromWorkbookFiles(workbook, fileName) {
+        async function buildDatasetFromWorkbookFiles(workbook, fileName, options = {}) {
+          const business = options.business || "NEV";
           const sharedStrings = parseSharedStrings(workbook);
           const entries = getWorksheetFileEntries(workbook);
           const checkedSheets = [];
@@ -5083,14 +5269,15 @@
 
                 if (!headerIndex) {
                   headerCandidates.push(row);
-                  const layout = findHeaderLayout(headerCandidates);
+                  const layout = findHeaderLayout(headerCandidates, business);
                   if (layout) {
                     headerIndex = layout.fieldIndex;
                     builder = createDatasetBuilder(
                       fileName,
                       entry.sheetName,
                       headerIndex,
-                      [layout.start + 1, layout.end + 1]
+                      [layout.start + 1, layout.end + 1],
+                      options
                     );
                     headerCandidates.slice(layout.end + 1).forEach((dataRow) => builder.addRow(dataRow));
                   } else if (headerCandidates.length >= HEADER_SCAN_LIMIT) {
@@ -5112,21 +5299,22 @@
             if (!parsedRows) checkedSheets.push(`${entry.sheetName}：空表`);
           }
 
-          throw new Error(`上传文件未找到线索明细表，请确认至少包含：${getRequiredMetricLabels().join("、")}。已检查：${checkedSheets.join("；") || "无可读取工作表"}`);
+          throw new Error(`上传文件未找到线索明细表，请确认至少包含：${getRequiredMetricLabels(business).join("、")}。已检查：${checkedSheets.join("；") || "无可读取工作表"}`);
         }
 
-        async function buildDatasetFromWorkbook(workbook, fileName) {
+        async function buildDatasetFromWorkbook(workbook, fileName, options = {}) {
           try {
-            const { sheetName, rows, headerIndex, headerRows } = findSourceTable(workbook);
-            return buildDatasetFromRows(fileName, sheetName, rows, headerIndex, headerRows);
+            const { sheetName, rows, headerIndex, headerRows } = findSourceTable(workbook, options.business || "NEV");
+            return buildDatasetFromRows(fileName, sheetName, rows, headerIndex, headerRows, options);
           } catch (error) {
-            if (workbook.files) return buildDatasetFromWorkbookFiles(workbook, fileName);
+            if (workbook.files) return buildDatasetFromWorkbookFiles(workbook, fileName, options);
             throw error;
           }
         }
 
         function getDatasetLevelSignature(dataset) {
           return JSON.stringify({
+            business: dataset.business || "NEV",
             dimensions: DATASET_DIMENSION_FIELDS
               .map((field) => field.key)
               .filter((key) => dataset.availableDimensions?.includes(key)),
@@ -5190,6 +5378,12 @@
 
           return {
             generatedAt: new Date().toISOString(),
+            business: datasets[0].business || "NEV",
+            inferredMonths: [...new Set(datasets.map((dataset) => dataset.inferredMonth).filter(Boolean))],
+            modelCleaningApplied: datasets.some((dataset) => dataset.modelCleaningApplied),
+            cleanedModelRows: datasets.reduce((sum, dataset) => sum + Number(dataset.cleanedModelRows || 0), 0),
+            unmatchedModels: [...new Set(datasets.flatMap((dataset) => dataset.unmatchedModels || []))],
+            ignoredRepeatedDelivery: datasets.some((dataset) => dataset.ignoredRepeatedDelivery),
             sourceFile: datasets.length === 1 ? datasets[0].sourceFile : `${datasets.length} 个文件`,
             sourceFiles: datasets.flatMap((dataset) => dataset.sourceFiles || [dataset.sourceFile]),
             sourceSheet: datasets.length === 1 ? datasets[0].sourceSheet : `${datasets.length} 个工作表`,
@@ -5372,7 +5566,8 @@
         }
 
         function getDefaultOverviewModels() {
-          const availableModels = new Set(getVisibleDimensionValues(state.dataset.models));
+          const availableModels = new Set(getDisplayedModels());
+          if (state.business === "ICE") return availableModels.size ? [...availableModels] : ["全部"];
           const defaultModels = DEFAULT_OVERVIEW_MODELS.filter((model) => availableModels.has(model));
           if (defaultModels.length) return defaultModels;
           const fallbackModels = [...availableModels].slice(0, 4);
@@ -5381,7 +5576,7 @@
 
         function getDefaultCompareModels() {
           const mainModel = els.modelSelect.value || "全部";
-          const options = getVisibleDimensionValues(state.dataset.models).filter((item) => item && item !== "全部");
+          const options = getDisplayedModels().filter((item) => item && item !== "全部");
           if (mainModel !== "全部" && options.includes(mainModel)) return [mainModel];
           return options.slice(0, 3);
         }
@@ -5400,7 +5595,7 @@
         }
 
         function isCustomMainRange() {
-          if (!hasUsableDateDimension()) return false;
+          if (!hasUsableDateDimension()) return hasDatasetDimension("month") && els.businessMonthSelect.value !== "全部";
           return els.startDate.value !== state.dataset.dateMin || els.endDate.value !== state.dataset.dateMax;
         }
 
@@ -5412,6 +5607,7 @@
             subregion: els.subregionSelect.value || "全部",
             channel: els.channelSelect.value || "全部",
             model: els.modelSelect.value || "全部",
+            month: !hasUsableDateDimension() ? els.businessMonthSelect?.value || "全部" : "全部",
           };
         }
 
@@ -5431,6 +5627,7 @@
           const schemaIndex = state.dataset.schemaIndex;
           return rows.filter((row) => {
             const rowDate = state.dataset.dates[row[schemaIndex.dateId]];
+            if (filters.month && filters.month !== "全部" && getDimensionValue(row, "month") !== filters.month) return false;
             if (hasUsableDateDimension() && filters.startDate && filters.endDate) {
               if (rowDate < filters.startDate || rowDate > filters.endDate) return false;
             }
@@ -5690,7 +5887,7 @@
         function summarizeByDimension(currentRows, compareRows, dimensionKey) {
           const currentMap = groupRows(currentRows, dimensionKey);
           const compareMap = groupRows(compareRows, dimensionKey);
-          const rows = [...currentMap.entries()].map(([name, items]) => {
+          const rows = [...currentMap.entries()].filter(([name]) => dimensionKey !== "model" || isDisplayedModel(name)).map(([name, items]) => {
             const summary = computeSummaryFromRows(items);
             const stageRows = evaluateStages(summary);
             const compareSummary = computeSummaryFromRows(compareMap.get(name) || []);
@@ -5966,8 +6163,9 @@
         }
 
         function getDailySeries(rows) {
-          if (!hasUsableDateDimension()) return [];
-          const map = groupRows(rows, "date");
+          const dimension = hasUsableDateDimension() ? "date" : hasDatasetDimension("month") ? "month" : "";
+          if (!dimension) return [];
+          const map = groupRows(rows, dimension);
           return [...map.entries()]
             .sort((left, right) => left[0].localeCompare(right[0]))
             .map(([date, items]) => {
@@ -6047,7 +6245,7 @@
           const models = getDefaultOverviewModels();
           const calendars = models.map((model) => {
             const cells = dates.map((date) => {
-              const candidates = SURGE_METRIC_KEYS.map((metricKey) => buildAlertMetricPoint(model, date, metricKey, threshold)).filter(Boolean);
+              const candidates = SURGE_METRIC_KEYS.filter(isMetricAvailable).map((metricKey) => buildAlertMetricPoint(model, date, metricKey, threshold)).filter(Boolean);
               candidates.sort((left, right) => {
                 const scoreDelta = getAlertMetricScore(right) - getAlertMetricScore(left);
                 if (scoreDelta) return scoreDelta;
@@ -6351,7 +6549,7 @@
                   const upHits = items.filter((item) => item.direction === "up").length;
                   const downHits = items.filter((item) => item.direction === "down").length;
                   const selectedItem = items.find((item) => `${item.model}|${item.date}|${item.metricKey}` === activeKey) || null;
-                  const lanesMarkup = SURGE_METRIC_KEYS.map((metricKey) => {
+                  const lanesMarkup = SURGE_METRIC_KEYS.filter(isMetricAvailable).map((metricKey) => {
                     const metricItems = items.filter((item) => item.metricKey === metricKey);
                     const layouts = layoutAlertGanttItems(metricItems, dateIndex, dateCount);
                     const markers = layouts.map((layout) => renderAlertGanttMarker(layout, activeKey)).join("");
@@ -6773,12 +6971,13 @@
         function updateMeta() {
           els.metaDateRange.textContent = hasUsableDateDimension()
             ? `${state.dataset.dateMin} ~ ${state.dataset.dateMax}`
-            : "未提供日期";
+            : hasDatasetDimension("month") ? getVisibleDimensionValues(state.dataset.months).sort().join("、") : "未提供日期";
           els.metaRowCount.textContent = `${formatNumber(state.dataset.rowCount)} 行`;
           els.metaChannelCount.textContent = `${getVisibleDimensionValues(state.dataset.channels).length} 个`;
-          els.metaModelCount.textContent = `${getVisibleDimensionValues(state.dataset.models).length} 个`;
+          const modelCount = getVisibleDimensionValues(state.dataset.models).length;
+          els.metaModelCount.textContent = state.business === "ICE" ? `展示 ${getDisplayedModels().length} 个 / 统计 ${modelCount} 个` : `${modelCount} 个`;
           els.sourceNote.textContent = state.dataset.sourceRowCount
-            ? `${state.dataset.sourceFile} · ${state.dataset.generatedAt.replace("T", " ").slice(0, 19)} · 固定口径：排除探陆相关车型（${formatNumber(state.dataset.defaultExcludedRowCount || 0)} 行）`
+            ? `${state.business} · ${state.dataset.sourceFile} · ${state.dataset.generatedAt.replace("T", " ").slice(0, 19)}${state.business === "NEV" ? ` · 固定口径：排除探陆相关车型（${formatNumber(state.dataset.defaultExcludedRowCount || 0)} 行）` : " · 车型与渠道按 ICE 知识库匹配"}`
             : "尚未上传数据";
           els.overviewCapsule.textContent =
             !hasUsableDateDimension()
@@ -6886,10 +7085,10 @@
             const name = getDimensionValue(row, dimensionKey);
             if (isEmptyDimensionValue(name)) return;
             if (!buckets.has(name)) {
-              buckets.set(name, Object.fromEntries(AREA_METRIC_KEYS.map((key) => [key, 0])));
+              buckets.set(name, Object.fromEntries(getAreaMetricKeys().map((key) => [key, 0])));
             }
             const summary = buckets.get(name);
-            AREA_METRIC_KEYS.forEach((key) => {
+            getAreaMetricKeys().forEach((key) => {
               summary[key] += Number(row[state.dataset.schemaIndex[key]] || 0);
             });
           });
@@ -6908,7 +7107,7 @@
           rows.forEach((row) => {
             const dimensionName = getDimensionValue(row, dimensionKey);
             const rawModelName = getDimensionValue(row, "model");
-            if (isEmptyDimensionValue(dimensionName)) return;
+            if (isEmptyDimensionValue(dimensionName) || !isDisplayedModel(rawModelName)) return;
             const modelName = isEmptyDimensionValue(rawModelName) ? "未标注车型" : rawModelName;
             if (!modelBuckets.has(modelName)) modelBuckets.set(modelName, new Map());
             const dimensionBuckets = modelBuckets.get(modelName);
@@ -6925,8 +7124,9 @@
             }))
             .filter((item) => item.total > 0)
             .sort((left, right) => {
-              const leftOrder = AREA_MODEL_STACK_ORDER.indexOf(left.name);
-              const rightOrder = AREA_MODEL_STACK_ORDER.indexOf(right.name);
+              const modelOrder = state.business === "ICE" ? ICE_DISPLAY_MODELS : AREA_MODEL_STACK_ORDER;
+              const leftOrder = modelOrder.indexOf(left.name);
+              const rightOrder = modelOrder.indexOf(right.name);
               if (leftOrder >= 0 || rightOrder >= 0) {
                 if (leftOrder < 0) return 1;
                 if (rightOrder < 0) return -1;
@@ -6937,7 +7137,7 @@
         }
 
         function computeAreaViewModel() {
-          const metricKey = AREA_METRIC_KEYS.includes(els.areaMetricSelect.value) ? els.areaMetricSelect.value : AREA_METRIC_KEYS[0];
+          const metricKey = getAreaMetricKeys().includes(els.areaMetricSelect.value) ? els.areaMetricSelect.value : getAreaMetricKeys()[0];
           const filters = getMainFilters();
           const areaBaseRows = filterRowsByFilters(state.dataset.rows, {
             ...filters,
@@ -7002,7 +7202,7 @@
               note: leadingRegion ? formatNumber(leadingRegion.summary[metricKey]) : "未提供大区维度",
             },
             {
-              label: "线索锁单率",
+              label: CHART_STUDIO_CALCULATED_METRICS.leadToLockRate.label,
               value: formatPercent(calcRate(activeSummary.lockOrder, activeSummary.newLead)),
               note: `${formatNumber(activeSummary.lockOrder)} 锁单 / ${formatNumber(activeSummary.newLead)} 线索`,
             },
@@ -7021,7 +7221,7 @@
         function renderAreaRankingChart(viewModel) {
           const { filters, metricKey, regionRows, regionModelRows } = viewModel;
           const metricLabel = METRICS[metricKey]?.label || metricKey;
-          els.areaChartTitle.textContent = `大区排名 · ${metricLabel}（车型堆积）`;
+          els.areaChartTitle.textContent = `大区排名 · ${metricLabel}${state.business === "ICE" ? "（指定车型堆积，合计含全部车型）" : "（车型堆积）"}`;
           if (!hasDatasetDimension("region") || !regionRows.length) {
             disposeChart("areaRanking");
             els.areaRankingChart.innerHTML = '<div class="empty-focus">当前数据未提供大区维度</div>';
@@ -7119,7 +7319,7 @@
                       .map((item) => `${item.marker}${escapeHtml(item.seriesName)}：${formatNumber(item.value)}`)
                     : []),
                   `<strong>合计：${formatNumber(row.summary[metricKey])}</strong>`,
-                  ...AREA_METRIC_KEYS.map((key) => `${escapeHtml(METRICS[key].label)}：${formatNumber(row.summary[key])}`),
+                  ...getAreaMetricKeys().map((key) => `${escapeHtml(METRICS[key].label)}：${formatNumber(row.summary[key])}`),
                   `有效率：${formatPercent(row.effectiveLeadRate)}`,
                   `线索锁单率：${formatPercent(row.leadToLockRate)}`,
                 ].join("<br/>");
@@ -7213,10 +7413,10 @@
                 <td>${formatNumber(row.summary.validLead)}</td>
                 <td>${formatPercent(row.effectiveLeadRate)}</td>
                 <td>${formatNumber(row.summary.newStoreVisit)}</td>
-                <td>${formatNumber(row.summary.validTestDrive)}</td>
+                ${isMetricAvailable("validTestDrive") ? `<td>${formatNumber(row.summary.validTestDrive)}</td>` : ""}
                 <td>${formatNumber(row.summary.bigOrder)}</td>
                 <td>${formatNumber(row.summary.lockOrder)}</td>
-                <td>${formatNumber(row.summary.delivery)}</td>
+                ${isMetricAvailable("delivery") ? `<td>${formatNumber(row.summary.delivery)}</td>` : ""}
                 <td>${formatPercent(row.leadToLockRate)}</td>
               </tr>
             `;
@@ -7230,10 +7430,10 @@
               <td>${formatNumber(total.validLead)}</td>
               <td>${formatPercent(calcRate(total.validLead, total.newLead))}</td>
               <td>${formatNumber(total.newStoreVisit)}</td>
-              <td>${formatNumber(total.validTestDrive)}</td>
+              ${isMetricAvailable("validTestDrive") ? `<td>${formatNumber(total.validTestDrive)}</td>` : ""}
               <td>${formatNumber(total.bigOrder)}</td>
               <td>${formatNumber(total.lockOrder)}</td>
-              <td>${formatNumber(total.delivery)}</td>
+              ${isMetricAvailable("delivery") ? `<td>${formatNumber(total.delivery)}</td>` : ""}
               <td>${formatPercent(calcRate(total.lockOrder, total.newLead))}</td>
             </tr>`;
         }
@@ -7259,10 +7459,10 @@
                 <td>${formatNumber(row.summary.validLead)}</td>
                 <td>${formatPercent(row.effectiveLeadRate)}</td>
                 <td>${formatNumber(row.summary.newStoreVisit)}</td>
-                <td>${formatNumber(row.summary.validTestDrive)}</td>
+                ${isMetricAvailable("validTestDrive") ? `<td>${formatNumber(row.summary.validTestDrive)}</td>` : ""}
                 <td>${formatNumber(row.summary.bigOrder)}</td>
                 <td>${formatNumber(row.summary.lockOrder)}</td>
-                <td>${formatNumber(row.summary.delivery)}</td>
+                ${isMetricAvailable("delivery") ? `<td>${formatNumber(row.summary.delivery)}</td>` : ""}
                 <td>${formatPercent(row.leadToLockRate)}</td>
               </tr>
             `;
@@ -7275,10 +7475,10 @@
               <td>${formatNumber(total.validLead)}</td>
               <td>${formatPercent(calcRate(total.validLead, total.newLead))}</td>
               <td>${formatNumber(total.newStoreVisit)}</td>
-              <td>${formatNumber(total.validTestDrive)}</td>
+              ${isMetricAvailable("validTestDrive") ? `<td>${formatNumber(total.validTestDrive)}</td>` : ""}
               <td>${formatNumber(total.bigOrder)}</td>
               <td>${formatNumber(total.lockOrder)}</td>
-              <td>${formatNumber(total.delivery)}</td>
+              ${isMetricAvailable("delivery") ? `<td>${formatNumber(total.delivery)}</td>` : ""}
               <td>${formatPercent(calcRate(total.lockOrder, total.newLead))}</td>
             </tr>`;
         }
@@ -7310,7 +7510,7 @@
         function getDealerFocusDimensionValues(dimensionKey) {
           if (dimensionKey === "all") return ["全国"];
           const field = getDealerFocusDimensionField(dimensionKey);
-          return field ? getVisibleDimensionValues(state.dataset[field.valuesKey]) : [];
+          return dimensionKey === "model" ? getDisplayedModels() : field ? getVisibleDimensionValues(state.dataset[field.valuesKey]) : [];
         }
 
         function createDealerFocusColumn(kind, dimension, value, count = 0) {
@@ -7366,6 +7566,7 @@
             ...filters,
             startDate: "",
             endDate: "",
+            month: "全部",
             region: "全部",
             subregion: "全部",
           });
@@ -7641,7 +7842,7 @@
           ]));
           const { periodControl, comparePeriodControl } = getDealerFocusPeriodControls(periods);
           const averageColumn = { kind: "benchmark", count: state.dealerFocus.scopeValues.length };
-          const bodyRows = DEALER_FOCUS_ROWS.map((rowConfig) => `
+          const bodyRows = getDealerFocusRows().map((rowConfig) => `
             <tr class="${rowConfig.format === "percent" ? "dealer-focus-rate-row" : ""}">
               <th class="dealer-focus-metric-cell" scope="row">${rowConfig.label}</th>
               ${channels.map((channel) => {
@@ -7795,7 +7996,7 @@
               </button>
             </th>
           `).join("");
-          const bodyRows = DEALER_FOCUS_ROWS.map((rowConfig) => `
+          const bodyRows = getDealerFocusRows().map((rowConfig) => `
             <tr class="${rowConfig.format === "percent" ? "dealer-focus-rate-row" : ""}">
               <th class="dealer-focus-metric-cell" scope="row">${rowConfig.label}</th>
               ${columns.map((column, index) => {
@@ -7873,17 +8074,18 @@
         function captureCostPeriodFromMainRange(options = {}) {
           const startDate = hasUsableDateDimension() ? els.startDate.value : "";
           const endDate = hasUsableDateDimension() ? els.endDate.value : "";
-          const existing = state.costCalculator.periods.find((period) => period.startDate === startDate && period.endDate === endDate);
+          const month = !hasUsableDateDimension() ? els.businessMonthSelect.value || "全部" : "全部";
+          const existing = state.costCalculator.periods.find((period) => period.startDate === startDate && period.endDate === endDate && (period.month || "全部") === month);
           if (existing && !options.allowDuplicate) return null;
           const id = `cost-period-${state.costCalculator.serial++}`;
-          state.costCalculator.periods.push({ id, startDate, endDate });
+          state.costCalculator.periods.push({ id, startDate, endDate, month });
           state.costCalculator.fees[id] = {};
           return id;
         }
 
         function addCostPeriod() {
-          if (!hasUsableDateDimension()) {
-            showToast("当前数据没有日期维度，无需添加时间范围", "warning");
+          if (!hasUsableDateDimension() && !hasDatasetDimension("month")) {
+            showToast("当前数据没有日期或月份维度，无需添加时间范围", "warning");
             return;
           }
           const id = captureCostPeriodFromMainRange();
@@ -7904,8 +8106,23 @@
           renderCostCalculator();
         }
 
+        function getCostChannels() {
+          if (state.business !== "ICE") return COST_CHANNELS;
+          return [...new Set(getVisibleDimensionValues(state.dataset.channels).map(normalizeCostChannel).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
+        }
+
+        function getCostMethods() {
+          return Object.fromEntries(Object.entries(COST_METHODS).filter(([, method]) => isMetricAvailable(method.metricKey)).map(([key, method]) => [key, state.business === "ICE" && key === "CPO" ? { ...method, label: "单个成交成本" } : method]));
+        }
+
+        function formatCostPeriod(period) { return !hasUsableDateDimension() && hasDatasetDimension("month") ? `${period.month && period.month !== "全部" ? formatChartStudioMonth(period.month) : "全部月份"}（月度数据）` : formatAnalysisRange(period.startDate, period.endDate); }
+
         function normalizeCostChannel(value) {
           const normalized = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+          if (state.business === "ICE") {
+            const channel = normalized.match(/^R(?:6-[123]|10|11|[1-9])(?=\D|$)/)?.[0] || "";
+            return { "R6-1": "R6", "R6-2": "R10", "R6-3": "R11" }[channel] || channel;
+          }
           if (normalized.startsWith("R8商超")) return "R8商超";
           if (normalized.startsWith("R8车巡展") || normalized.startsWith("R8巡展")) return "R8车巡展";
           const match = normalized.match(/^R(10|11|3|4|5|6)(?:\D|$)/);
@@ -7916,12 +8133,13 @@
         function getCostPeriodSummaries(period) {
           const method = COST_METHODS[state.costCalculator.method] || COST_METHODS.CPL;
           const metricIndex = state.dataset.schemaIndex[method.metricKey];
-          const summaries = Object.fromEntries(COST_CHANNELS.map((channel) => [channel, 0]));
+          const summaries = Object.fromEntries(getCostChannels().map((channel) => [channel, 0]));
           state.dataset.rows.forEach((row) => {
             if (hasUsableDateDimension()) {
               const rowDate = getDimensionValue(row, "date");
               if (rowDate < period.startDate || rowDate > period.endDate) return;
             }
+            if (period.month && period.month !== "全部" && getDimensionValue(row, "month") !== period.month) return;
             if (state.costCalculator.model !== "全部" && getDimensionValue(row, "model") !== state.costCalculator.model) return;
             const channel = normalizeCostChannel(getDimensionValue(row, "channel"));
             if (!channel) return;
@@ -7980,16 +8198,17 @@
 
         function renderCostCalculator() {
           if (state.view !== "cost-calculator") return;
-          const modelOptions = getVisibleDimensionValues(state.dataset.models);
+          const modelOptions = getDisplayedModels();
           populateSelect(els.costCalculatorModelSelect, modelOptions, (value) => formatDimensionText("model", value));
           if (!modelOptions.includes(state.costCalculator.model)) state.costCalculator.model = "全部";
           els.costCalculatorModelSelect.value = state.costCalculator.model;
           const allModelOption = els.costCalculatorModelSelect.querySelector('option[value="全部"]');
-          if (allModelOption) allModelOption.textContent = "全车系（不含探陆）";
+          if (allModelOption) allModelOption.textContent = state.business === "ICE" ? "全车系" : "全车系（不含探陆）";
           els.costCalculatorModelSelect.disabled = !hasDatasetDimension("model");
 
+          if (!getCostMethods()[state.costCalculator.method]) state.costCalculator.method = "CPL";
           const method = COST_METHODS[state.costCalculator.method] || COST_METHODS.CPL;
-          els.costMethodList.innerHTML = Object.entries(COST_METHODS).map(([key, config]) => `
+          els.costMethodList.innerHTML = Object.entries(getCostMethods()).map(([key, config]) => `
             <button class="cost-method-btn ${key === state.costCalculator.method ? "is-active" : ""}" type="button" data-cost-method="${key}">
               <strong>${key}</strong><span>${config.label}</span>
             </button>
@@ -7997,10 +8216,10 @@
           els.costFormulaText.textContent = `${state.costCalculator.method} = 渠道费用 ÷ 渠道${METRICS[method.metricKey]?.label || method.metricKey}`;
           els.costDateHint.textContent = hasUsableDateDimension()
             ? `顶部当前范围：${formatAnalysisRange(els.startDate.value, els.endDate.value)}；修改后点击“添加时间范围”可向右追加。`
-            : "当前数据没有日期维度，按全量实绩计算。";
-          els.addCostPeriodBtn.disabled = !hasUsableDateDimension();
+            : hasDatasetDimension("month") ? `顶部当前月份：${els.businessMonthSelect.value || "全部"}；选择月份后可添加月度对比列。` : "当前数据没有日期维度，按全量实绩计算。";
+          els.addCostPeriodBtn.disabled = !hasUsableDateDimension() && !hasDatasetDimension("month");
           els.openCostFeeModalBtn.disabled = !state.costCalculator.periods.length;
-          els.costCalculatorScope.textContent = `${state.costCalculator.model === "全部" ? "全车系（不含探陆）" : formatDimensionText("model", state.costCalculator.model)} · ${state.costCalculator.periods.length} 个时间范围`;
+          els.costCalculatorScope.textContent = `${state.costCalculator.model === "全部" ? (state.business === "ICE" ? "全车系" : "全车系（不含探陆）") : formatDimensionText("model", state.costCalculator.model)} · ${state.costCalculator.periods.length} 个时间范围`;
 
           if (!hasDatasetDimension("channel")) {
             els.costCalculatorTableMount.innerHTML = '<div class="cost-calculator-empty">当前数据未提供渠道维度，无法计算渠道成本</div>';
@@ -8013,13 +8232,13 @@
               <div class="cost-period-head-inner">
                 <div>
                   <span class="cost-period-title">时间范围 ${index + 1}</span>
-                  <span class="cost-period-range">${escapeHtml(formatAnalysisRange(period.startDate, period.endDate))}</span>
+                  <span class="cost-period-range">${escapeHtml(formatCostPeriod(period))}</span>
                 </div>
                 ${state.costCalculator.periods.length > 1 ? `<button class="cost-period-remove" type="button" data-cost-period-remove="${period.id}" aria-label="删除时间范围 ${index + 1}">×</button>` : ""}
               </div>
             </th>
           `).join("");
-          const bodyRows = COST_CHANNELS.map((channel) => {
+          const bodyRows = getCostChannels().map((channel) => {
             const basePerformance = Number(periodSummaries[0]?.[channel] || 0);
             const baseCost = getCostValue(state.costCalculator.periods[0]?.id, channel, basePerformance);
             return `
@@ -8092,7 +8311,7 @@
           document.body.classList.toggle("is-upload-modal-open", state.uploadModalOpen || state.dealerFocus.scopeOpen || isOpen);
           if (!isOpen) return;
           els.costFeePeriodSelect.innerHTML = state.costCalculator.periods.map((period, index) => `
-            <option value="${period.id}">时间范围 ${index + 1} · ${escapeHtml(formatAnalysisRange(period.startDate, period.endDate))}</option>
+            <option value="${period.id}">时间范围 ${index + 1} · ${escapeHtml(formatCostPeriod(period))}</option>
           `).join("");
           if (!state.costCalculator.periods.some((period) => period.id === state.costCalculator.pastePeriodId)) {
             state.costCalculator.pastePeriodId = state.costCalculator.periods[0]?.id || "";
@@ -8424,7 +8643,7 @@
               ? groupRowsByChartStudioMonth(items) : groupRows(items, dimension);
           const categoryLabel = (key) => dimension === "date" && config.dateAggregation === "month"
             ? formatChartStudioMonth(key) : formatDimensionText(dimension, key);
-          const categoryOptions = [...groupCategories(baseRows).keys()].map((key) => ({ key: String(key), label: categoryLabel(key) }))
+          const categoryOptions = [...groupCategories(baseRows).keys()].filter((key) => dimension !== "model" || isDisplayedModel(key)).map((key) => ({ key: String(key), label: categoryLabel(key) }))
             .sort((left, right) => compareNaturalDimensionText(left.label, right.label));
           const { showMonths, showMonthSplit } = getChartStudioToolbarModel(config, axisModel);
           const monthOptions = showMonths ? [...new Set(baseRows.map(getChartStudioRowMonth))]
@@ -8433,8 +8652,11 @@
           const selectedMonths = showMonths && Array.isArray(config.selectedMonths) ? new Set(config.selectedMonths) : null;
           const filteredRows = selectedMonths ? baseRows.filter((row) => selectedMonths.has(getChartStudioRowMonth(row))) : baseRows;
           const selectedCategories = Array.isArray(config.selectedCategories) ? new Set(config.selectedCategories) : null;
-          const selectedGroups = [...groupCategories(filteredRows)].filter(([key, items]) => items.length && (!selectedCategories || selectedCategories.has(String(key))));
+          const selectedGroups = [...groupCategories(filteredRows)].filter(([key, items]) => items.length && (dimension !== "model" || isDisplayedModel(key)) && (!selectedCategories || selectedCategories.has(String(key))));
           const displayedSourceRows = selectedGroups.flatMap(([, items]) => items);
+          // Default model totals include undisplayed ICE models; explicit selections keep their own scope.
+          const summaryRows = dimension === "model" && state.business === "ICE" && !selectedCategories ? filteredRows : displayedSourceRows;
+          const summaryIncludesHiddenModels = summaryRows.length > displayedSourceRows.length;
           const monthSplit = showMonthSplit && Boolean(config.monthSplit);
           const months = monthOptions.filter((option) => !selectedMonths || selectedMonths.has(option.key));
           const summarizeMonths = (items) => {
@@ -8446,7 +8668,7 @@
             });
             return Object.fromEntries([...groups].map(([month, rows]) => [month, computeSummaryFromRows(rows)]));
           };
-          const monthlySummaries = monthSplit ? summarizeMonths(displayedSourceRows) : {};
+          const monthlySummaries = monthSplit ? summarizeMonths(summaryRows) : {};
           const rows = selectedGroups.map(([name, items]) => {
             const summary = computeSummaryFromRows(items);
             const monthly = monthSplit ? summarizeMonths(items) : {};
@@ -8467,7 +8689,7 @@
           if (config.sort === "category-desc") rows.sort((left, right) => compareNaturalDimensionText(right.name, left.name));
           return {
             rows, categoryOptions, categoryCount: categoryOptions.length, monthOptions, months, monthSplit, monthlySummaries,
-            filteredRowCount: displayedSourceRows.length, summary: computeSummaryFromRows(displayedSourceRows), axisModel, metricKeys,
+            filteredRowCount: summaryRows.length, summary: computeSummaryFromRows(summaryRows), summaryIncludesHiddenModels, axisModel, metricKeys,
           };
         }
 
@@ -8519,7 +8741,7 @@
           const series = getChartStudioDisplaySeries(config, chartData);
           const dimensionLabel = getChartStudioDimensionLabel(config, axisModel);
           const dataScopeLabel = monthSplit ? `${dimensionLabel} · 按月拆分` : axisModel.dimension?.key === "date" && config.dateAggregation === "month" ? "分月汇总" : `${dimensionLabel}明细`;
-          const hasTotal = Boolean(axisModel.dimension && rows.length > 1);
+          const hasTotal = Boolean(axisModel.dimension && (rows.length > 1 || chartData.summaryIncludesHiddenModels));
           const formatCell = (item, value) => value == null ? "—" : formatChartStudioMetricValue(item.metricKey, value);
           const headers = config.dataViewTransposed
             ? [monthSplit ? "月份 / 指标" : "指标", ...rows.map((row) => row.name), ...(hasTotal ? ["合计"] : [])]
@@ -8550,6 +8772,7 @@
                 <div class="chart-data-view-meta-copy">
                   <span>${escapeHtml(dataScopeLabel)} · ${formatNumber(filteredRowCount)} 行源数据</span>
                   <span>${escapeHtml(categoryText)} · ${monthSplit ? `${months.length} 个月 × ` : ""}${formatNumber(metricKeys.length)} 个指标</span>
+                  ${chartData.summaryIncludesHiddenModels ? "<span>仅展示指定车型，合计包含全部车型</span>" : ""}
                 </div>
                 <div class="chart-data-view-actions">
                   <button class="btn btn-subtle" type="button" data-action="transpose-chart-data-view" data-chart-id="${config.id}" aria-pressed="${config.dataViewTransposed}">${config.dataViewTransposed ? "恢复行列" : "行列转置"}</button>
@@ -8586,6 +8809,7 @@
           if (!rows.length) {
             if (config.selectedMonths?.length === 0) return "请至少选择一个要展示的月份";
             if (config.selectedCategories?.length === 0) return "请至少选择一个要展示的分类";
+            if (chartData.summaryIncludesHiddenModels) return "当前范围没有指定的展示车型，数据仍计入全车型汇总";
             if (Array.isArray(config.selectedMonths)) return "当前筛选下没有所选月份的数据";
             return Array.isArray(config.selectedCategories) ? "当前筛选下没有所选分类的数据" : "当前筛选口径下没有可绘制的数据";
           }
@@ -8644,7 +8868,7 @@
             textStyle: { fontFamily: UI_FONT_FAMILY },
             title: {
               text: config.title || "自定义图表",
-              subtext: `${dimensionLabel} · ${formatNumber(filteredRowCount)} 行明细 · ${formatNumber(rows.length)} 个分类${monthSplit ? " · 按月拆分" : ""}`,
+              subtext: `${dimensionLabel} · ${formatNumber(filteredRowCount)} 行明细 · ${formatNumber(rows.length)} 个分类${monthSplit ? " · 按月拆分" : ""}${chartData.summaryIncludesHiddenModels ? " · 合计含全部车型" : ""}`,
               left: 18,
               top: 10,
               textStyle: { color: "#0d1117", fontSize: 16, fontWeight: 800 },
@@ -9910,7 +10134,7 @@
           const activeStageName = viewModel.activeStage?.name || "当前指标";
           document.getElementById("trendChartTitle").textContent = compareVisible && viewModel.compareTrendSeries.length
             ? `${focusedModelLabel} · ${activeStageName}趋势对比`
-            : `${focusedModelLabel} · ${activeStageName}日趋势`;
+            : `${focusedModelLabel} · ${activeStageName}${hasUsableDateDimension() ? "日" : "月"}趋势`;
           document.getElementById("conversionChartTitle").textContent = compareVisible
             ? `${focusedModelLabel} · ${activeStageName}区间对比`
             : `${focusedModelLabel} · 漏斗阶段量级`;
@@ -10422,7 +10646,7 @@
           const dates = getMatrixDates(startDate, endDate);
           const channels = getVisibleDimensionValues(state.dataset.channels);
           const modelText = state.drill.model === "全部" ? "全车型" : formatDimensionText("model", state.drill.model);
-          els.channelMatrixTitle.textContent = `${modelText}分渠道大定锁单`;
+          els.channelMatrixTitle.textContent = state.business === "ICE" ? `${modelText}分渠道订单成交` : `${modelText}分渠道大定锁单`;
           els.channelMatrixSubtitle.textContent = `${startDate} ~ ${endDate}`;
           if (!dates.length || !channels.length) {
             els.channelMatrixTable.innerHTML = '<tbody><tr><td class="empty">-</td></tr></tbody>';
@@ -10432,7 +10656,7 @@
           const headerDates = dates
             .map((date) => `<th colspan="2">${escapeHtml(date.slice(5))}</th>`)
             .join("");
-          const headerMetrics = dates.map(() => "<th>大定量</th><th>锁单量</th>").join("");
+          const headerMetrics = dates.map(() => `<th>${escapeHtml(METRICS.bigOrder.label)}</th><th>${escapeHtml(METRICS.lockOrder.label)}</th>`).join("");
           const columnGroup = `
             <colgroup>
               <col class="channel-matrix-channel-col">
@@ -10546,8 +10770,8 @@
                           <td>${formatNumber(media.activeValue)}</td>
                           <td>${formatNumber(media.summary.newLead)}</td>
                           <td>${formatNumber(media.summary.lockOrder)}</td>
-                          <td>${formatNumber(media.summary.delivery)}</td>
-                          <td>${formatPercent(media.summary.driveToLockRate)}</td>
+                          ${isMetricAvailable("delivery") ? `<td>${formatNumber(media.summary.delivery)}</td>` : ""}
+                          ${isMetricAvailable("validTestDrive") ? `<td>${formatPercent(media.summary.driveToLockRate)}</td>` : ""}
                           ${buildCostCell(media.costSummary, activeCostMetric)}
                           <td>
                             <button class="table-action" data-action="select-detail" data-level="media" data-name="${media.name}" data-project="${project.name}">
@@ -10573,8 +10797,8 @@
                       <td>${formatNumber(project.activeValue)}</td>
                       <td>${formatNumber(project.summary.newLead)}</td>
                       <td>${formatNumber(project.summary.lockOrder)}</td>
-                      <td>${formatNumber(project.summary.delivery)}</td>
-                      <td>${formatPercent(project.summary.driveToLockRate)}</td>
+                      ${isMetricAvailable("delivery") ? `<td>${formatNumber(project.summary.delivery)}</td>` : ""}
+                      ${isMetricAvailable("validTestDrive") ? `<td>${formatPercent(project.summary.driveToLockRate)}</td>` : ""}
                       ${buildCostCell(project.costSummary, activeCostMetric)}
                       <td>
                         <button class="table-action" data-action="select-detail" data-level="project" data-name="${project.name}">
@@ -10740,6 +10964,7 @@
 
         function refreshSurgeAlerts(options = {}) {
           if (!state.dataset) return;
+          renderBusinessControls();
           const startedAt = performance.now();
           const taskId = beginRenderTask();
           setComputeState("computing");
@@ -10844,134 +11069,206 @@
             .replace(/"/g, "&quot;");
         }
 
+        function createEmptyBusinessDataset(business) {
+          if (business === "NEV") return decodeDataset(window.REPORT_DATA, window.REPORT_DATA.rows.length ? "默认预构建数据" : "尚未上传 NEV 数据");
+          return decodeDataset({
+            business, schema: [...DATASET_DIMENSION_FIELDS.map((field) => field.schemaKey), ...DATASET_METRIC_FIELDS.map((field) => field.key)],
+            rows: [], rowCount: 0, generatedAt: "", sourceFile: "", availableDimensions: [], completeDimensions: [],
+            availableMetrics: ["newLead", "validLead", "newStoreVisit", "bigOrder", "lockOrder"],
+          }, "尚未上传 ICE 数据");
+        }
+
+        function captureBusinessWorkspace() {
+          return {
+            values: structuredClone(Object.fromEntries(BUSINESS_WORKSPACE_KEYS.map((key) => [key, state[key]]))),
+            controls: Object.fromEntries(BUSINESS_CONTROL_KEYS.map((key) => [key, els[key].value])),
+            compareModels: getSelectedValues(els.compareModelSelect),
+            hash: window.location.hash,
+          };
+        }
+
+        function restoreBusinessWorkspace(workspace) {
+          Object.assign(state, structuredClone(workspace.values));
+          els.regionSelect.value = workspace.controls.regionSelect;
+          syncSubregionSelect();
+          els.subregionSelect.value = workspace.controls.subregionSelect;
+          syncAreaChannelSelect();
+          BUSINESS_CONTROL_KEYS.forEach((key) => { els[key].value = workspace.controls[key] || ""; });
+          setSelectedValues(els.compareModelSelect, workspace.compareModels);
+          state.dealerFocus.scopeOpen = false;
+          state.costCalculator.pasteOpen = false;
+          window.history.replaceState(null, "", workspace.hash || "#home");
+        }
+
+        function renderBusinessControls() {
+          els.businessSwitch.querySelectorAll("[data-business]").forEach((button) => {
+            button.setAttribute("aria-pressed", String(button.dataset.business === state.business));
+            button.disabled = state.resetting;
+          });
+          els.businessScopeNote.textContent = `当前板块：${state.business} · 数据与设置独立${state.business === "ICE" ? " · 仅展示指定 7 个车型，全部车型参与汇总" : ""}`;
+          els.resetData.textContent = `恢复 ${state.business} 默认`;
+          els.resetData.disabled = isBusinessUploadRunning() || state.resetting;
+          els.uploadTrigger.disabled = state.resetting;
+          document.querySelectorAll("[data-source-metric]").forEach((cell) => { cell.hidden = !isMetricAvailable(cell.dataset.sourceMetric); });
+          document.querySelectorAll("[data-metric-label]").forEach((cell) => { cell.textContent = CHART_STUDIO_METRICS[cell.dataset.metricLabel].label; });
+          const costNote = document.querySelector("#costCalculatorSection .section-note");
+          costNote.textContent = state.business === "ICE" ? "按 ICE 渠道独立录入费用；成交量用于 CPO，不提供试驾成本。" : "默认统计除探陆外全车系；仅展示 R3、R4、R5、R6、R8车巡展、R8商超、R10、R11，并按手填费用计算渠道成本。";
+          document.querySelectorAll(".area-channel-panel .panel-note").forEach((note) => { note.textContent = "按当前板块可用指标汇总；点击渠道名称可应用或取消该渠道筛选。"; });
+        }
+
+        function activateBusiness(business) {
+          if (!["NEV", "ICE"].includes(business) || business === state.business || state.resetting) return;
+          if (state.dataset) state.businesses[state.business].workspace = captureBusinessWorkspace();
+          Object.keys(state.charts).forEach(disposeChart);
+          state.business = business;
+          Object.assign(state, structuredClone(initialBusinessWorkspace));
+          ["regionSelect", "subregionSelect", "channelSelect", "modelSelect"].forEach((key) => { els[key].value = "全部"; });
+          window.history.replaceState(null, "", "#home");
+          const slot = state.businesses[business];
+          initDataset(slot.decoded || createEmptyBusinessDataset(business), slot.workspace);
+          window.dispatchEvent?.(new Event("businesschange"));
+        }
+
+        function getUploadWorkspace(business) {
+          const slot = state.businesses[business];
+          if (!slot) throw new Error("未知上传板块");
+          if (!slot.upload) slot.upload = { pendingUploadFiles: [], uploadStatus: "idle", uploadSummary: "", uploadError: "", uploadFileResults: [], uploadMonth: "" };
+          return slot.upload;
+        }
+
+        function getUploadPanelElements(business) {
+          const prefix = business === "ICE" ? "ice" : "";
+          const get = (id) => document.getElementById(prefix ? `${prefix}${id[0].toUpperCase()}${id.slice(1)}` : id);
+          return { root: document.getElementById(`${business.toLowerCase()}UploadPanel`), input: get("fileInput"), zone: get("uploadDropZone"), title: get("uploadDropTitle"), meta: get("uploadDropMeta"), action: get("uploadDropAction"), feedback: get("uploadFeedback"), start: get("uploadStartBtn") };
+        }
+
+        function isBusinessUploadRunning(business = state.business) { return getUploadWorkspace(business).uploadStatus === "running"; }
+
+        function hasRunningUploads() { return ["NEV", "ICE"].some(isBusinessUploadRunning); }
+
+
+
+        async function resetBusinessDataset() {
+          if (isBusinessUploadRunning() || state.resetting) return;
+          const business = state.business;
+          state.resetting = true;
+          renderBusinessControls();
+          try {
+            await clearDatasetCache(business);
+            state.businesses[business].workspace = null;
+            state.businesses[business].upload = null;
+            Object.assign(state, structuredClone(initialBusinessWorkspace));
+            initDataset(createEmptyBusinessDataset(business));
+            renderUploadModal();
+          } catch (error) {
+            showToast(`恢复默认失败：${error.message}`, "error");
+          } finally { state.resetting = false; renderBusinessControls(); }
+        }
+
         function renderUploadModal() {
           const isOpen = state.uploadModalOpen;
-          const isRunning = state.uploadStatus === "running";
-          const isSuccess = state.uploadStatus === "success";
-          const files = state.pendingUploadFiles;
           els.uploadModal.classList.toggle("is-open", isOpen);
           els.uploadModal.setAttribute("aria-hidden", String(!isOpen));
           document.body.classList.toggle("is-upload-modal-open", isOpen || state.dealerFocus.scopeOpen || state.costCalculator.pasteOpen);
-          els.uploadDropZone.classList.toggle("is-disabled", isRunning);
-          els.uploadDropZone.setAttribute("aria-disabled", String(isRunning));
-          els.uploadModalClose.disabled = isRunning;
-          els.uploadModalCancel.disabled = isRunning;
-          els.uploadModalCancel.textContent = isSuccess ? "关闭" : "取消";
-          els.uploadDropTitle.textContent = files.length ? "继续拖拽同级数据到这里" : "拖拽一份或多份同级数据到这里";
-          els.uploadDropMeta.textContent = "支持 .xlsx / .xls；系统按表头名称识别字段，不依赖固定列位置。";
-          els.uploadDropAction.textContent = files.length ? "点击或拖拽继续添加文件" : "点击选择文件";
-
-          const statusMeta = {
-            idle: files.length ? { icon: files.length, title: `已选择 ${files.length} 份文件`, className: "is-pending" } : null,
-            running: { icon: "…", title: "正在识别并清洗数据", className: "is-running" },
-            success: { icon: "✓", title: "上传成功", className: "is-success" },
-            error: { icon: "!", title: "上传失败", className: "is-error" },
-          }[state.uploadStatus];
-          els.uploadFeedback.className = "upload-feedback";
-          if (!statusMeta) {
-            els.uploadFeedback.innerHTML = "";
-          } else {
-            els.uploadFeedback.classList.add("is-visible", statusMeta.className);
-            const detail = state.uploadStatus === "idle"
-              ? "文件将在点击“开始上传”后统一识别，可在上传前删除误选文件。"
-              : state.uploadStatus === "error" ? state.uploadError : state.uploadSummary;
-            const fileResults = state.uploadFileResults.length
-              ? state.uploadFileResults
-              : files.map((file) => ({ name: file.name, status: "pending", message: "待上传" }));
-            const canRemoveFiles = !isRunning && !isSuccess;
-            els.uploadFeedback.innerHTML = `
-              <div class="upload-feedback-head">
-                <span class="upload-feedback-icon">${statusMeta.icon}</span>
-                <div>
-                  <div class="upload-feedback-title">${statusMeta.title}</div>
-                  ${detail ? `<div class="upload-feedback-detail">${escapeHtml(detail)}</div>` : ""}
-                </div>
-              </div>
-              ${fileResults.length ? `
-                <div class="upload-file-results">
-                  ${fileResults.map((result, index) => `
-                    <div class="upload-file-result">
-                      <span class="upload-file-name" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span>
-                      <span class="upload-file-actions">
-                        <span class="upload-file-state ${result.status === "success" ? "is-success" : result.status === "error" ? "is-error" : ""}">${escapeHtml(result.message)}</span>
-                        ${canRemoveFiles && index < files.length ? `<button class="upload-file-remove" type="button" data-upload-file-remove="${index}" aria-label="删除 ${escapeHtml(result.name)}">删除</button>` : ""}
-                      </span>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : ""}
-            `;
+          els.uploadModalCancel.textContent = "关闭";
+          els.uploadMonth.value = getUploadWorkspace("ICE").uploadMonth;
+          els.uploadMonth.disabled = isBusinessUploadRunning("ICE");
+          for (const business of ["NEV", "ICE"]) {
+            const upload = getUploadWorkspace(business);
+            const panel = getUploadPanelElements(business);
+            const files = upload.pendingUploadFiles;
+            const isRunning = upload.uploadStatus === "running";
+            const isSuccess = upload.uploadStatus === "success";
+            panel.input.disabled = isRunning;
+            panel.zone.classList.toggle("is-disabled", isRunning);
+            panel.zone.setAttribute("aria-disabled", String(isRunning));
+            const count = state.businesses[business].decoded?.raw.rowCount || 0;
+            panel.root.querySelector("[data-business-upload-status]").textContent = count ? `已保存 ${formatNumber(count)} 行` : "尚未上传";
+            panel.title.textContent = files.length ? `继续添加 ${business} 同级数据` : `拖入 ${business} Excel`;
+            panel.action.textContent = `点击选择 ${business} 文件`;
+            const statusMeta = {
+              idle: files.length ? { icon: files.length, title: `已选择 ${files.length} 份文件`, className: "is-pending" } : null,
+              running: { icon: "…", title: "正在识别并清洗数据", className: "is-running" },
+              success: { icon: "✓", title: "上传成功", className: "is-success" },
+              error: { icon: "!", title: "上传失败", className: "is-error" },
+            }[upload.uploadStatus];
+            panel.feedback.className = "upload-feedback";
+            if (!statusMeta) panel.feedback.innerHTML = "";
+            else {
+              panel.feedback.classList.add("is-visible", statusMeta.className);
+              const detail = upload.uploadStatus === "idle" ? `仅上传到 ${business} 板块，可在开始前移除文件。` : upload.uploadStatus === "error" ? upload.uploadError : upload.uploadSummary;
+              const fileResults = upload.uploadFileResults.length ? upload.uploadFileResults : files.map((file) => ({ name: file.name, status: "pending", message: "待上传" }));
+              panel.feedback.innerHTML = `
+                <div class="upload-feedback-head"><span class="upload-feedback-icon">${statusMeta.icon}</span><div><div class="upload-feedback-title">${statusMeta.title}</div><div class="upload-feedback-detail">${escapeHtml(detail)}</div></div></div>
+                <div class="upload-file-results">${fileResults.map((result, index) => `
+                  <div class="upload-file-result"><span class="upload-file-name" title="${escapeHtml(result.name)}">${escapeHtml(result.name)}</span><span class="upload-file-actions"><span class="upload-file-state ${result.status === "success" ? "is-success" : result.status === "error" ? "is-error" : ""}">${escapeHtml(result.message)}</span>${!isRunning && index < files.length ? `<button class="upload-file-remove" type="button" data-upload-file-remove="${index}" aria-label="从 ${business} 移除 ${escapeHtml(result.name)}">移除</button>` : ""}</span></div>
+                `).join("")}</div>`;
+            }
+            panel.start.textContent = isRunning ? `${business} 正在处理` : isSuccess ? `${business} 已上传` : upload.uploadStatus === "error" ? `重新上传 ${business}` : `上传 ${business} 数据`;
+            panel.start.disabled = isRunning || isSuccess || !files.length || (state.resetting && state.business === business);
           }
-
-          els.uploadStartBtn.textContent = isRunning ? "正在处理" : isSuccess ? "完成" : state.uploadStatus === "error" ? "重新上传" : "开始上传";
-          els.uploadStartBtn.disabled = isRunning || (!isSuccess && !files.length);
+          renderBusinessControls();
         }
 
         function openUploadModal() {
           state.uploadModalOpen = true;
-          state.pendingUploadFiles = [];
-          state.uploadStatus = "idle";
-          state.uploadSummary = "";
-          state.uploadError = "";
-          state.uploadFileResults = [];
-          els.fileInput.value = "";
           renderUploadModal();
-          requestAnimationFrame(() => els.uploadDropZone.focus());
+          requestAnimationFrame(() => getUploadPanelElements(state.business).zone.focus());
         }
 
         function closeUploadModal() {
-          if (state.uploadStatus === "running") return;
           state.uploadModalOpen = false;
-          state.pendingUploadFiles = [];
-          els.fileInput.value = "";
           renderUploadModal();
         }
 
-        function selectUploadFiles(fileList) {
-          if (state.uploadStatus === "running") return;
+        function selectUploadFiles(fileList, business = state.business) {
+          const upload = getUploadWorkspace(business);
+          if (upload.uploadStatus === "running") return;
           const files = [...(fileList || [])];
           const invalidFiles = files.filter((file) => !/\.(xlsx|xls)$/i.test(file.name));
           const validFiles = files.filter((file) => /\.(xlsx|xls)$/i.test(file.name));
-          const selectedFileKeys = new Set(state.pendingUploadFiles.map((file) => `${file.name}\u0000${file.size}\u0000${file.lastModified}`));
+          const selectedFileKeys = new Set(upload.pendingUploadFiles.map((file) => `${file.name}\u0000${file.size}\u0000${file.lastModified}`));
           const addedFiles = validFiles.filter((file) => {
             const fileKey = `${file.name}\u0000${file.size}\u0000${file.lastModified}`;
             if (selectedFileKeys.has(fileKey)) return false;
             selectedFileKeys.add(fileKey);
             return true;
           });
-          state.uploadSummary = "";
+          upload.uploadSummary = "";
           if (addedFiles.length) {
-            state.pendingUploadFiles = [...state.pendingUploadFiles, ...addedFiles];
-            state.uploadFileResults = [];
+            upload.pendingUploadFiles = [...upload.pendingUploadFiles, ...addedFiles];
+            upload.uploadFileResults = [];
           }
           if (invalidFiles.length) {
-            state.uploadStatus = "error";
-            state.uploadError = `仅支持 .xlsx 或 .xls 文件：${invalidFiles.map((file) => file.name).join("、")}；已选 Excel 文件仍保留`;
+            upload.uploadStatus = "error";
+            upload.uploadError = `仅支持 .xlsx 或 .xls 文件：${invalidFiles.map((file) => file.name).join("、")}；已选 Excel 文件仍保留`;
           } else if (addedFiles.length) {
-            state.uploadStatus = "idle";
-            state.uploadError = "";
+            upload.uploadStatus = "idle";
+            upload.uploadError = "";
           } else if (files.length) {
             showToast("所选文件已在上传列表中", "warning");
           }
           renderUploadModal();
         }
 
-        function removePendingUploadFile(index) {
-          if (state.uploadStatus === "running" || state.uploadStatus === "success") return;
-          const file = state.pendingUploadFiles[index];
+        function removePendingUploadFile(index, business = state.business) {
+          const upload = getUploadWorkspace(business);
+          if (upload.uploadStatus === "running") return;
+          const file = upload.pendingUploadFiles[index];
           if (!file) return;
-          state.pendingUploadFiles = state.pendingUploadFiles.filter((_, fileIndex) => fileIndex !== index);
-          state.uploadStatus = "idle";
-          state.uploadSummary = "";
-          state.uploadError = "";
-          state.uploadFileResults = [];
+          upload.pendingUploadFiles = upload.pendingUploadFiles.filter((_, fileIndex) => fileIndex !== index);
+          upload.uploadStatus = "idle";
+          upload.uploadSummary = "";
+          upload.uploadError = "";
+          upload.uploadFileResults = [];
           renderUploadModal();
           showToast(`已移除：${file.name}`, "warning");
         }
 
-        function updateUploadFileResult(index, status, message) {
-          if (!state.uploadFileResults[index]) return;
-          state.uploadFileResults[index] = { ...state.uploadFileResults[index], status, message };
+        function updateUploadFileResult(index, status, message, business = state.business) {
+          const upload = getUploadWorkspace(business);
+          if (!upload.uploadFileResults[index]) return;
+          upload.uploadFileResults[index] = { ...upload.uploadFileResults[index], status, message };
           renderUploadModal();
         }
 
@@ -11022,6 +11319,10 @@
             parseSharedStrings,
             columnNameToIndex,
             parseWorksheetRow,
+            getDatasetHeaderFields,
+            getRequiredMetricKeys,
+            getUploadMonth,
+            cleanUploadedModel,
             cleanUploadedChannel,
             createDatasetBuilder,
             buildDatasetFromRows,
@@ -11040,6 +11341,10 @@
             const DATASET_METRIC_FIELDS = ${JSON.stringify(DATASET_METRIC_FIELDS)};
             const DATASET_HEADER_FIELDS = [...DATASET_DIMENSION_FIELDS, ...DATASET_METRIC_FIELDS];
             const REQUIRED_DATASET_METRIC_KEYS = new Set(${JSON.stringify([...REQUIRED_DATASET_METRIC_KEYS])});
+            const ICE_MODEL_NAMES = ${JSON.stringify(ICE_MODEL_NAMES)};
+            const ICE_METRIC_HEADERS = ${JSON.stringify(ICE_METRIC_HEADERS)};
+            const ICE_METRIC_LABELS = ${JSON.stringify(ICE_METRIC_LABELS)};
+            const METRICS = ${JSON.stringify(METRICS)};
             const HEADER_SCAN_LIMIT = ${HEADER_SCAN_LIMIT};
             const HEADER_DEPTH_LIMIT = ${HEADER_DEPTH_LIMIT};
             ${workerFunctions}
@@ -11053,7 +11358,7 @@
                   self.postMessage({ type: "file-start", index });
                   const buffer = await file.arrayBuffer();
                   const workbook = XLSX.read(buffer, { type: "array", cellDates: true, raw: true, bookFiles: true, dense: true });
-                  const dataset = await buildDatasetFromWorkbook(workbook, file.name);
+                  const dataset = await buildDatasetFromWorkbook(workbook, file.name, event.data.options);
                   datasets.push(dataset);
                   self.postMessage({ type: "file-success", index, rowCount: dataset.rowCount });
                 }
@@ -11067,7 +11372,7 @@
           `;
         }
 
-        function parseUploadedFilesInWorker(files, onProgress) {
+        function parseUploadedFilesInWorker(files, onProgress, options = {}) {
           if (!window.Worker || !window.Blob || !window.URL?.createObjectURL) {
             const error = new Error("当前浏览器不支持后台解析");
             error.workerUnavailable = true;
@@ -11113,97 +11418,76 @@
               error.workerUnavailable = true;
               reject(error);
             };
-            worker.postMessage({ files });
+            worker.postMessage({ files, options });
           });
         }
 
-        async function parseUploadedFilesOnMainThread(files, onProgress) {
+        async function parseUploadedFilesOnMainThread(files, onProgress, options = {}) {
           const datasets = [];
           for (let index = 0; index < files.length; index += 1) {
             onProgress({ type: "file-start", index });
             await new Promise((resolve) => requestAnimationFrame(resolve));
             const buffer = await files[index].arrayBuffer();
             const workbook = XLSX.read(buffer, { type: "array", cellDates: true, raw: true, bookFiles: true, dense: true });
-            const parsedDataset = await buildDatasetFromWorkbook(workbook, files[index].name);
+            const parsedDataset = await buildDatasetFromWorkbook(workbook, files[index].name, options);
             datasets.push(parsedDataset);
             onProgress({ type: "file-success", index, rowCount: parsedDataset.rowCount });
           }
           return mergeDatasets(datasets);
         }
 
-        async function processUploadedFiles(files) {
-          if (!files.length || state.uploadStatus === "running") return;
-          state.uploadStatus = "running";
-          state.uploadSummary = `共 ${files.length} 份文件，正在按表头识别字段`;
-          state.uploadError = "";
-          state.uploadFileResults = files.map((file) => ({ name: file.name, status: "pending", message: "等待处理" }));
+        async function processUploadedFiles(files, business = state.business) {
+          const upload = getUploadWorkspace(business);
+          if (!files.length || upload.uploadStatus === "running" || (state.resetting && state.business === business)) return;
+          const options = { business, month: upload.uploadMonth };
+          upload.uploadStatus = "running";
+          upload.uploadSummary = `共 ${files.length} 份文件，正在按表头识别字段`;
+          upload.uploadError = "";
+          upload.uploadFileResults = files.map((file) => ({ name: file.name, status: "pending", message: "等待处理" }));
           renderUploadModal();
           let activeFileIndex = -1;
           try {
-            const taskId = beginRenderTask();
-            setComputeState("computing");
-            showUploadWorkspaceLoading(files);
+            if (state.business === business) { beginRenderTask(); setComputeState("computing"); showUploadWorkspaceLoading(files); }
             await new Promise((resolve) => requestAnimationFrame(resolve));
-            if (!isRenderTaskCurrent(taskId)) return;
             const updateProgress = (message) => {
-              if (message.type === "finalizing") {
-                state.uploadSummary = `共 ${files.length} 份文件，正在合并并应用识别结果`;
-                renderUploadModal();
-                return;
-              }
+              if (message.type === "finalizing") { upload.uploadSummary = `正在合并 ${business} 数据`; renderUploadModal(); return; }
               activeFileIndex = message.index;
-              showUploadWorkspaceLoading(files, message.index);
-              if (message.type === "file-start") {
-                updateUploadFileResult(message.index, "running", "正在后台识别");
-              } else {
-                updateUploadFileResult(message.index, "success", `识别 ${formatNumber(message.rowCount)} 行`);
-              }
+              if (state.business === business) showUploadWorkspaceLoading(files, message.index);
+              updateUploadFileResult(message.index, message.type === "file-start" ? "running" : "success", message.type === "file-start" ? "正在后台识别" : `识别 ${formatNumber(message.rowCount)} 行`, business);
             };
             let dataset;
-            try {
-              dataset = await parseUploadedFilesInWorker(files, updateProgress);
-            } catch (workerError) {
+            try { dataset = await parseUploadedFilesInWorker(files, updateProgress, options); }
+            catch (workerError) {
               if (!workerError.workerUnavailable) throw workerError;
               console.warn("后台解析不可用，已切换兼容模式", workerError);
-              dataset = await parseUploadedFilesOnMainThread(files, updateProgress);
+              dataset = await parseUploadedFilesOnMainThread(files, updateProgress, options);
             }
-            const sourceLabel = files.length === 1
-              ? `页面上传数据：${files[0].name}`
-              : `页面上传数据：${files.length} 个文件`;
-            initDataset(decodeDataset(dataset, sourceLabel));
+            const sourceLabel = files.length === 1 ? `页面上传数据：${files[0].name}` : `页面上传数据：${files.length} 个文件`;
+            const decoded = decodeDataset(dataset, sourceLabel);
+            const slot = state.businesses[business];
+            slot.decoded = decoded;
+            slot.workspace = null;
+            if (state.business === business) initDataset(decoded);
             let cacheWarning = "";
-            try {
-              await saveDatasetCache(dataset, sourceLabel);
-            } catch (cacheError) {
-              cacheWarning = `；本地保存失败：${cacheError.message}`;
-            }
-            const missingLabels = DATASET_DIMENSION_FIELDS
-              .filter((field) => dataset.missingDimensions.includes(field.key))
-              .map((field) => field.label);
-            const mergeNote = files.length > 1
-              ? `已合并 ${files.length} 份同级数据，源数据 ${formatNumber(dataset.rowCount)} 行，参与统计 ${formatNumber(state.dataset.rowCount)} 行`
-              : `已加载源数据 ${formatNumber(dataset.rowCount)} 行，参与统计 ${formatNumber(state.dataset.rowCount)} 行`;
-            const defaultFilterNote = `；固定排除探陆相关车型 ${formatNumber(state.dataset.defaultExcludedRowCount || 0)} 行`;
-            const cleaningNote = dataset.channelCleaningApplied
-              ? `；已执行渠道清洗，调整 ${formatNumber(dataset.cleanedChannelRows)} 行`
-              : "；未同时检测到渠道、媒体和大项目名，未执行渠道清洗";
-            const missingNote = missingLabels.length ? `；缺少维度：${missingLabels.join("、")}` : "";
-            state.uploadStatus = "success";
-            state.uploadSummary = `${mergeNote}${cleaningNote}${defaultFilterNote}${missingNote}${cacheWarning}`;
-            state.uploadError = "";
+            try { await saveDatasetCache(dataset, sourceLabel, business); }
+            catch (cacheError) { cacheWarning = `；本地保存失败：${cacheError.message}`; }
+            const missingLabels = DATASET_DIMENSION_FIELDS.filter((field) => dataset.missingDimensions.includes(field.key)).map((field) => field.label);
+            const mergeNote = `${business} · ${files.length > 1 ? `已合并 ${files.length} 份同级数据，` : ""}源数据 ${formatNumber(dataset.rowCount)} 行，参与统计 ${formatNumber(decoded.raw.rowCount)} 行`;
+            const defaultFilterNote = business === "NEV" ? `；固定排除探陆相关车型 ${formatNumber(decoded.raw.defaultExcludedRowCount || 0)} 行` : "";
+            const cleaningNote = dataset.channelCleaningApplied ? `；渠道清洗调整 ${formatNumber(dataset.cleanedChannelRows)} 行` : "；未同时提供渠道、大项目和媒体列，保留原渠道";
+            const modelNote = business === "ICE" ? `；车型转换 ${formatNumber(dataset.cleanedModelRows || 0)} 行${dataset.unmatchedModels?.length ? `；未匹配车型 ${formatNumber(dataset.unmatchedModels.length)} 个，保留参与统计` : ""}${dataset.inferredMonths?.length ? `；补充月份：${dataset.inferredMonths.join("、")}` : ""}${dataset.ignoredRepeatedDelivery ? "；未累计重复的总交车量" : ""}` : "";
+            upload.uploadStatus = "success";
+            upload.uploadSummary = `${mergeNote}${cleaningNote}${modelNote}${defaultFilterNote}${missingLabels.length ? `；缺少维度：${missingLabels.join("、")}` : ""}${cacheWarning}`;
             renderUploadModal();
             showToast(`${mergeNote}${defaultFilterNote}`, missingLabels.length ? "warning" : "success", 6000);
           } catch (error) {
-            setComputeState("idle");
-            if (state.dataset) renderAll();
-            if (activeFileIndex >= 0 && state.uploadFileResults[activeFileIndex]?.status !== "success") {
-              updateUploadFileResult(activeFileIndex, "error", "识别失败");
-            }
-            state.uploadStatus = "error";
-            state.uploadSummary = "";
-            state.uploadError = error.message;
+            if (state.business === business) { setComputeState("idle"); if (state.dataset) renderAll(); }
+            if (activeFileIndex >= 0 && upload.uploadFileResults[activeFileIndex]?.status !== "success") updateUploadFileResult(activeFileIndex, "error", "识别失败", business);
+            upload.uploadStatus = "error";
+            upload.uploadSummary = "";
+            upload.uploadError = error.message;
             renderUploadModal();
-            showToast(`上传失败：${error.message}`, "error");
+            showToast(`${business} 上传失败：${error.message}`, "error");
           }
         }
 
@@ -11233,10 +11517,12 @@
           }
         }
 
-        function initDataset(decoded) {
+        function initDataset(decoded, workspace = null) {
           state.dataset = decoded.raw;
+          state.businesses[state.business].decoded = decoded;
+          applyBusinessMetricLabels();
           state.sourceLabel = decoded.sourceLabel;
-          state.stageConfigs = cloneStages(DEFAULT_STAGES);
+          state.stageConfigs = cloneStages(getBusinessDefaultStages());
           state.editorStageId = state.stageConfigs[0].id;
           state.drill = createDefaultDrill();
           state.alertDrill = createDefaultAlertDrill();
@@ -11249,9 +11535,13 @@
           populateSelect(els.regionSelect, getVisibleDimensionValues(state.dataset.regions));
           syncSubregionSelect();
           syncAreaChannelSelect();
-          populateSelect(els.modelSelect, getVisibleDimensionValues(state.dataset.models));
-          populateCompareModelOptions(els.compareModelSelect, getVisibleDimensionValues(state.dataset.models));
+          populateSelect(els.modelSelect, getDisplayedModels());
+          populateCompareModelOptions(els.compareModelSelect, getDisplayedModels());
 
+          populateSelect(els.businessMonthSelect, getVisibleDimensionValues(state.dataset.months).sort(), formatChartStudioMonth);
+          els.businessMonthSelect.value = "全部";
+          els.businessMonthControl.hidden = hasUsableDateDimension() || !hasDatasetDimension("month");
+          populateSelect(els.areaMetricSelect, getAreaMetricKeys(), (key) => METRICS[key].label, false);
           const hasDates = hasUsableDateDimension();
           const dateInputs = [
             els.startDate,
@@ -11290,7 +11580,10 @@
           resetDealerFocus();
           resetCostCalculator();
 
+          if (workspace) restoreBusinessWorkspace(workspace);
+          renderBusinessControls();
           updateMeta();
+          if (workspace) { renderAll(); return; }
           if (!window.location.hash) {
             window.location.hash = "#home";
           } else {
@@ -11299,30 +11592,28 @@
         }
 
         async function bootDataset() {
-          try {
-            const cached = await readDatasetCache();
-            if (cached && cached.cleaningVersion === DATASET_CLEANING_VERSION && isDatasetUsable(cached.raw)) {
-              const sourceLabel = cached.sourceLabel || `页面上传数据：${cached.raw.sourceFile || "本地数据"}`;
-              initDataset(decodeDataset(cached.raw, sourceLabel));
-              return;
-            }
-            if (cached) await clearDatasetCache();
-          } catch (error) {
-            console.warn("读取本地上传数据失败，已使用默认数据", error);
+          for (const business of ["NEV", "ICE"]) {
+            try {
+              const cached = await readDatasetCache(business);
+              if (cached && cached.cleaningVersion === DATASET_CLEANING_VERSION && isDatasetUsable(cached.raw) && (cached.raw.business || "NEV") === business) {
+                state.businesses[business].decoded = decodeDataset(cached.raw, cached.sourceLabel || `页面上传数据：${cached.raw.sourceFile || "本地数据"}`);
+              }
+            } catch (error) { console.warn(`读取 ${business} 本地上传数据失败`, error); }
           }
-          initDataset(decodeDataset(window.REPORT_DATA, window.REPORT_DATA.rows.length ? "默认预构建数据" : "尚未上传数据"));
+          initDataset(state.businesses.NEV.decoded || createEmptyBusinessDataset("NEV"));
         }
 
         function renderCompareControls() {
           els.compareRow.classList.toggle("is-open", state.compareEnabled);
           els.toggleCompareBtn.textContent = state.compareEnabled ? "收起对比" : "加入对比";
-          els.toggleCompareBtn.disabled = !isCustomMainRange();
+          els.toggleCompareBtn.disabled = !hasUsableDateDimension() || !isCustomMainRange();
           if (!state.compareEnabled) els.compareModelDropdown.open = false;
           updateCompareModelDropdownSummary();
         }
 
         function renderAll() {
           if (!state.dataset) return;
+          renderBusinessControls();
           const startedAt = performance.now();
           const taskId = beginRenderTask();
           setComputeState("computing");
@@ -11548,7 +11839,7 @@
             if (!(input instanceof HTMLInputElement)) return;
             const periodId = input.dataset.costFeePeriod;
             const channel = input.dataset.costFeeChannel;
-            if (!state.costCalculator.fees[periodId] || !COST_CHANNELS.includes(channel)) return;
+            if (!state.costCalculator.fees[periodId] || !getCostChannels().includes(channel)) return;
             state.costCalculator.fees[periodId][channel] = input.value;
             refreshCostChannelOutputs(channel);
           });
@@ -11793,64 +12084,33 @@
             if (event.target === els.introGuide) closeIntroGuide();
           });
 
+          els.businessSwitch.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-business]");
+            if (button) activateBusiness(button.dataset.business);
+          });
+          els.businessMonthSelect.addEventListener("change", () => { state.drill = createDefaultDrill(); renderAll(); });
+          els.uploadMonth.addEventListener("input", () => { getUploadWorkspace("ICE").uploadMonth = els.uploadMonth.value; });
+          for (const business of ["NEV", "ICE"]) {
+            const panel = getUploadPanelElements(business);
+            const chooseFiles = () => { if (!isBusinessUploadRunning(business)) panel.input.click(); };
+            panel.zone.addEventListener("click", chooseFiles);
+            panel.zone.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); chooseFiles(); } });
+            ["dragenter", "dragover"].forEach((name) => panel.zone.addEventListener(name, (event) => { event.preventDefault(); event.stopPropagation(); if (!isBusinessUploadRunning(business)) panel.zone.classList.add("is-dragging"); }));
+            ["dragleave", "drop"].forEach((name) => panel.zone.addEventListener(name, (event) => { event.preventDefault(); event.stopPropagation(); panel.zone.classList.remove("is-dragging"); }));
+            panel.zone.addEventListener("drop", (event) => selectUploadFiles(event.dataTransfer?.files, business));
+            panel.input.addEventListener("change", (event) => { selectUploadFiles(event.target.files, business); event.target.value = ""; });
+            panel.feedback.addEventListener("click", (event) => {
+              const removeButton = event.target instanceof Element ? event.target.closest("[data-upload-file-remove]") : null;
+              if (removeButton) removePendingUploadFile(Number(removeButton.dataset.uploadFileRemove), business);
+            });
+            panel.start.addEventListener("click", () => processUploadedFiles([...getUploadWorkspace(business).pendingUploadFiles], business));
+          }
           els.uploadTrigger.addEventListener("click", openUploadModal);
           els.uploadModalClose.addEventListener("click", closeUploadModal);
           els.uploadModalCancel.addEventListener("click", closeUploadModal);
-          els.uploadModal.addEventListener("click", (event) => {
-            if (event.target === els.uploadModal) closeUploadModal();
-          });
-          els.uploadDropZone.addEventListener("click", () => {
-            if (state.uploadStatus !== "running") els.fileInput.click();
-          });
-          els.uploadDropZone.addEventListener("keydown", (event) => {
-            if (["Enter", " "].includes(event.key) && state.uploadStatus !== "running") {
-              event.preventDefault();
-              els.fileInput.click();
-            }
-          });
-          ["dragenter", "dragover"].forEach((eventName) => {
-            els.uploadDropZone.addEventListener(eventName, (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (state.uploadStatus !== "running") els.uploadDropZone.classList.add("is-dragging");
-            });
-          });
-          ["dragleave", "drop"].forEach((eventName) => {
-            els.uploadDropZone.addEventListener(eventName, (event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              els.uploadDropZone.classList.remove("is-dragging");
-            });
-          });
-          els.uploadDropZone.addEventListener("drop", (event) => {
-            if (state.uploadStatus !== "running") selectUploadFiles(event.dataTransfer?.files);
-          });
-          els.fileInput.addEventListener("change", (event) => {
-            selectUploadFiles(event.target.files);
-            event.target.value = "";
-          });
-          els.uploadFeedback.addEventListener("click", (event) => {
-            const removeButton = event.target instanceof Element ? event.target.closest("[data-upload-file-remove]") : null;
-            if (!removeButton) return;
-            removePendingUploadFile(Number(removeButton.dataset.uploadFileRemove));
-          });
-          els.uploadStartBtn.addEventListener("click", () => {
-            if (state.uploadStatus === "success") {
-              closeUploadModal();
-              return;
-            }
-            processUploadedFiles([...state.pendingUploadFiles]);
-          });
+          els.uploadModal.addEventListener("click", (event) => { if (event.target === els.uploadModal) closeUploadModal(); });
 
-          els.resetData.addEventListener("click", async () => {
-            try {
-              await clearDatasetCache();
-              state.compareEnabled = false;
-              initDataset(decodeDataset(window.REPORT_DATA, window.REPORT_DATA.rows.length ? "默认预构建数据" : "尚未上传数据"));
-            } catch (error) {
-              showToast(`恢复默认失败：${error.message}`, "error");
-            }
-          });
+          els.resetData.addEventListener("click", resetBusinessDataset);
 
           els.downloadPdf.addEventListener("click", () => {
             window.print();

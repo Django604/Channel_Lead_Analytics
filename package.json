@@ -6,7 +6,8 @@
     "build:data": "python scripts/build_report.py",
     "package:portable": "node scripts/package-portable.js",
     "verify:model-focus": "node scripts/verify-model-focus.js",
-    "verify:chart-categories": "node scripts/verify-chart-categories.js"
+    "verify:chart-categories": "node scripts/verify-chart-categories.js",
+    "verify:business-sectors": "node scripts/verify-business-sectors.js"
   },
   "dependencies": {
     "echarts": "^6.1.0",

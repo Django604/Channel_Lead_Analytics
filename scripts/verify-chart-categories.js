@@ -25,11 +25,11 @@ function declaration(name, kind = "function") {
 const constants = [
   "METRICS", "CHART_STUDIO_CALCULATED_METRICS", "CHART_STUDIO_METRICS", "DATASET_DIMENSION_FIELDS",
   "DATASET_METRIC_FIELDS", "AREA_METRIC_KEYS", "CHART_STUDIO_TYPE_GROUPS", "CHART_STUDIO_TYPES",
-  "CHART_STUDIO_DEFAULT_COLORS", "CHART_STUDIO_FILTER_KEYS", "CHANNEL_DISPLAY_NAMES", "UI_FONT_FAMILY",
+  "CHART_STUDIO_DEFAULT_COLORS", "CHART_STUDIO_FILTER_KEYS", "CHANNEL_DISPLAY_NAMES", "UI_FONT_FAMILY", "ICE_DISPLAY_MODELS",
 ];
 const functions = [
   "createDefaultChartCanvas", "hasDatasetDimension", "hasCompleteDatasetDimension", "hasUsableDateDimension",
-  "isEmptyDimensionValue", "getVisibleDimensionValues", "getDimensionValue", "formatDimensionValue",
+  "isEmptyDimensionValue", "getVisibleDimensionValues", "isDisplayedModel", "getDimensionValue", "formatDimensionValue",
   "formatDimensionText", "compareNaturalDimensionText", "normalizeHeaderName", "escapeHtml", "formatNumber",
   "getChartStudioDimensions", "getChartStudioMetricKeys", "getChartStudioFields", "getChartStudioAxisModel",
   "getChartStudioFilterFields", "getChartStudioToolbarModel", "getChartStudioFilterOptions",

@@ -610,6 +610,7 @@ body.ui-optimized {
 .ui-optimized .hero .compare-block input:not([type="checkbox"]),
 .ui-optimized .hero .compare-block select:not([multiple]),
 .ui-optimized .hero .btn,
+.ui-optimized .hero .business-switch button,
 .ui-optimized .hero .compare-model-dropdown summary,
 .ui-optimized .hero .compare-model-options,
 .ui-optimized .hero .compare-block .capsule {
@@ -626,6 +627,7 @@ body.ui-optimized {
 .ui-optimized .hero .compare-block input:not([type="checkbox"]):hover,
 .ui-optimized .hero .compare-block select:not([multiple]):hover,
 .ui-optimized .hero .btn:hover,
+.ui-optimized .hero .business-switch button[aria-pressed="false"]:not(:disabled):hover,
 .ui-optimized .hero .compare-model-dropdown summary:hover,
 .ui-optimized .hero .compare-block .capsule:hover {
   border-color: rgba(255, 255, 255, 0.35);
@@ -644,6 +646,24 @@ body.ui-optimized {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
+.ui-optimized .hero .business-switch button {
+  border-color: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ui-optimized .hero .business-switch button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(213, 0, 50, 0.45);
+  color: #9f0026;
+  box-shadow: 0 8px 24px rgba(213, 0, 50, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.ui-optimized .hero .business-switch button[aria-pressed="true"]:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(213, 0, 50, 0.6);
+}
+
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .ui-optimized .hero .meta-card,
   .ui-optimized .hero .control-block input,
@@ -651,9 +671,15 @@ body.ui-optimized {
   .ui-optimized .hero .compare-block input:not([type="checkbox"]),
   .ui-optimized .hero .compare-block select:not([multiple]),
   .ui-optimized .hero .btn,
+  .ui-optimized .hero .business-switch button,
   .ui-optimized .hero .compare-model-dropdown summary,
   .ui-optimized .hero .compare-model-options,
   .ui-optimized .hero .compare-block .capsule {
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  .ui-optimized .hero .business-switch button[aria-pressed="true"],
+  .ui-optimized .hero .business-switch button[aria-pressed="true"]:not(:disabled):hover {
     background: rgba(255, 255, 255, 0.88);
   }
 }
@@ -703,6 +729,10 @@ body.ui-optimized {
 .ui-optimized .overview-grid {
   grid-template-columns: 110px repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.ui-optimized .overview-grid > .overview-card:nth-of-type(4n + 1) {
+  grid-column: 2;
 }
 
 .ui-optimized .overview-stage-axis,
@@ -973,8 +1003,26 @@ body.ui-optimized {
     grid-template-columns: 108px repeat(2, minmax(0, 1fr));
   }
 
+  .ui-optimized .overview-grid > .overview-card:nth-of-type(2n + 1) {
+    grid-column: 2;
+  }
+
   .ui-optimized .overview-stage-axis {
     grid-row: span 2;
+  }
+}
+
+@media (max-width: 920px) {
+  .ui-optimized .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-optimized .overview-grid > .overview-card:nth-of-type(2n + 1) {
+    grid-column: auto;
+  }
+
+  .ui-optimized .overview-stage-axis {
+    display: none;
   }
 }
 
@@ -1145,14 +1193,6 @@ body.ui-optimized {
   .ui-optimized .overview-actions,
   .ui-optimized .alert-toolbar {
     width: 100%;
-  }
-
-  .ui-optimized .overview-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .ui-optimized .overview-stage-axis {
-    display: none;
   }
 
   .ui-optimized .overview-card,
