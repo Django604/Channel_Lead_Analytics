@@ -3269,15 +3269,15 @@
                   <tr>
                     <th>小区</th>
                     <th>所属大区</th>
-                    <th data-metric-label="newLead">新增线索量</th>
+                    <th data-metric-label-key="newLead">新增线索量</th>
                     <th>有效线索量</th>
                     <th>有效率</th>
-                    <th data-metric-label="newStoreVisit">新增到店量</th>
+                    <th data-metric-label-key="newStoreVisit">新增到店量</th>
                     <th data-source-metric="validTestDrive">有效试驾量</th>
-                    <th data-metric-label="bigOrder">大定量</th>
-                    <th data-metric-label="lockOrder">锁单量</th>
+                    <th data-metric-label-key="bigOrder">大定量</th>
+                    <th data-metric-label-key="lockOrder">锁单量</th>
                     <th data-source-metric="delivery">交车量</th>
-                    <th data-metric-label="leadToLockRate">线索锁单率</th>
+                    <th data-metric-label-key="leadToLockRate">线索锁单率</th>
                   </tr>
                 </thead>
                 <tbody id="subregionTableBody"></tbody>
@@ -3295,15 +3295,15 @@
               <thead>
                 <tr>
                   <th>渠道</th>
-                  <th data-metric-label="newLead">新增线索量</th>
+                  <th data-metric-label-key="newLead">新增线索量</th>
                   <th>有效线索量</th>
                   <th>有效率</th>
-                  <th data-metric-label="newStoreVisit">新增到店量</th>
+                  <th data-metric-label-key="newStoreVisit">新增到店量</th>
                   <th data-source-metric="validTestDrive">有效试驾量</th>
-                  <th data-metric-label="bigOrder">大定量</th>
-                  <th data-metric-label="lockOrder">锁单量</th>
+                  <th data-metric-label-key="bigOrder">大定量</th>
+                  <th data-metric-label-key="lockOrder">锁单量</th>
                   <th data-source-metric="delivery">交车量</th>
-                  <th data-metric-label="leadToLockRate">线索锁单率</th>
+                  <th data-metric-label-key="leadToLockRate">线索锁单率</th>
                 </tr>
               </thead>
               <tbody id="areaChannelTableBody"></tbody>
@@ -3464,8 +3464,8 @@
                     <th>名称</th>
                     <th>层级</th>
                     <th id="drillActiveStageHeader">当前指标</th>
-                    <th data-metric-label="newLead">新增线索量</th>
-                    <th data-metric-label="lockOrder">锁单量</th>
+                    <th data-metric-label-key="newLead">新增线索量</th>
+                    <th data-metric-label-key="lockOrder">锁单量</th>
                     <th data-source-metric="delivery">交车量</th>
                     <th data-source-metric="validTestDrive">试驾锁单率</th>
                     <th id="drillCostHeader">成本</th>
@@ -11106,7 +11106,10 @@
           els.resetData.disabled = isBusinessUploadRunning() || state.resetting;
           els.uploadTrigger.disabled = state.resetting;
           document.querySelectorAll("[data-source-metric]").forEach((cell) => { cell.hidden = !isMetricAvailable(cell.dataset.sourceMetric); });
-          document.querySelectorAll("[data-metric-label]").forEach((cell) => { cell.textContent = CHART_STUDIO_METRICS[cell.dataset.metricLabel].label; });
+          document.querySelectorAll("[data-metric-label-key]").forEach((cell) => {
+            const metric = CHART_STUDIO_METRICS[cell.dataset.metricLabelKey];
+            if (metric) cell.textContent = metric.label;
+          });
           const costNote = document.querySelector("#costCalculatorSection .section-note");
           costNote.textContent = state.business === "ICE" ? "按 ICE 渠道独立录入费用；成交量用于 CPO，不提供试驾成本。" : "默认统计除探陆外全车系；仅展示 R3、R4、R5、R6、R8车巡展、R8商超、R10、R11，并按手填费用计算渠道成本。";
           document.querySelectorAll(".area-channel-panel .panel-note").forEach((note) => { note.textContent = "按当前板块可用指标汇总；点击渠道名称可应用或取消该渠道筛选。"; });

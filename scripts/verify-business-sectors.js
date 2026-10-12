@@ -21,7 +21,17 @@ class Element {
   constructor(tag = "DIV", id = "") {
     this.tagName = tag.toUpperCase(); this.id = id; this.children = []; this.dataset = {};
     this._value = null; this._html = ""; this.hidden = true; this.attributes = {}; this.style = {};
-    this.classList = { toggle() {}, add() {}, remove() {} };
+    const classes = new Set();
+    this.classList = {
+      contains: (name) => classes.has(name),
+      add: (...names) => names.forEach((name) => classes.add(name)),
+      remove: (...names) => names.forEach((name) => classes.delete(name)),
+      toggle(name, force) {
+        const enabled = force === undefined ? !classes.has(name) : Boolean(force);
+        if (enabled) classes.add(name); else classes.delete(name);
+        return enabled;
+      },
+    };
   }
   get options() { return this.children.filter((child) => child.tagName === "OPTION"); }
   get selectedOptions() { return this.options.filter((child) => child.value === this.value || child.selected); }
@@ -35,7 +45,10 @@ class Element {
   set innerHTML(value) { this._html = value; this.children = []; if (this.tagName === "SELECT") this._value = null; }
   appendChild(child) { this.children.push(child); return child; }
   append(...children) { this.children.push(...children); }
-  setAttribute(name, value) { this.attributes[name] = String(value); }
+  setAttribute(name, value) {
+    this.attributes[name] = String(value);
+    if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value);
+  }
   matches(selector) { return selector === ".compare-model-options" && this.id === "compareModelSelect"; }
   querySelectorAll(selector) {
     const descendants = this.children.flatMap((child) => [child, ...child.querySelectorAll("*")]);
@@ -68,7 +81,18 @@ function fakeIndexedDB(records) {
   return { open() { const request = {}; queueMicrotask(() => { request.result = db; request.onsuccess(); }); return request; } };
 }
 
-function createApp(records = new Map()) {
+function metricCellsFromMarkup(source) {
+  return [...source.matchAll(/<(th|button)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi)]
+    .filter((match) => /\bdata-(?:metric-label(?:-key)?|source-metric)=/.test(match[2]))
+    .map((match) => {
+      const cell = new Element(match[1]);
+      for (const attribute of match[2].matchAll(/\b(data-[\w-]+)="([^"]*)"/g)) cell.setAttribute(attribute[1], attribute[2]);
+      cell.textContent = match[3].replace(/<[^>]*>/g, "").trim();
+      return cell;
+    });
+}
+
+function createApp(records = new Map(), options = {}) {
   const nodes = new Map();
   const selectIds = new Set([...html.matchAll(/<select\b[^>]*\bid="([^"]+)"/g)].map((match) => match[1]));
   const node = (id) => { if (!nodes.has(id)) nodes.set(id, new Element(selectIds.has(id) ? "SELECT" : "DIV", id)); return nodes.get(id); };
@@ -76,21 +100,48 @@ function createApp(records = new Map()) {
     const button = new Element("BUTTON"); button.dataset.business = business; node("businessSwitch").appendChild(button);
     const status = new Element("SPAN"); status.dataset.businessUploadStatus = business; node(`${business.toLowerCase()}UploadPanel`).appendChild(status);
   }
-  const document = { getElementById: node, createElement: (tag) => new Element(tag), querySelector: () => new Element(), querySelectorAll: () => [], body: new Element() };
+  const metricCells = metricCellsFromMarkup(markup);
+  const document = {
+    getElementById: node, createElement: (tag) => new Element(tag), querySelector: () => new Element(), body: new Element(),
+    querySelectorAll(selector) {
+      const attribute = /^\[(data-[\w-]+)\]$/.exec(selector)?.[1];
+      return attribute ? metricCells.filter((cell) => Object.hasOwn(cell.attributes, attribute)) : [];
+    },
+  };
   const window = { REPORT_DATA: { rows: [], schema: ["newLead", "validLead", "newStoreVisit", "validTestDrive", "bigOrder", "lockOrder", "delivery"], generatedAt: "", sourceFile: "", rowCount: 0, availableDimensions: [] }, indexedDB: fakeIndexedDB(records), location: { hash: "#home", href: "http://localhost/" } };
+  window.setTimeout = setTimeout; window.clearTimeout = clearTimeout;
   window.history = { replaceState: (_a, _b, hash) => { window.location.hash = hash; } };
   const context = vm.createContext({ structuredClone, TextDecoder, TextEncoder, URL, URLSearchParams, Uint8Array, ArrayBuffer, Blob, XLSX, setTimeout, clearTimeout, console: { warn() {}, log() {} }, performance, document, window, indexedDB: window.indexedDB, requestAnimationFrame: (callback) => callback() });
   const exports = ["state", "els", "ICE_MODEL_NAMES", "METRICS", "CHART_STUDIO_CALCULATED_METRICS", "getDatasetHeaderFields", "cleanUploadedChannel", "cleanUploadedModel", "getUploadMonth", "buildDatasetFromWorkbook", "buildDatasetFromWorkbookFiles", "mergeDatasets", "decodeDataset", "createExcelUploadWorkerSource", "parseUploadedFilesOnMainThread", "processUploadedFiles", "initDataset", "bootDataset", "activateBusiness", "captureBusinessWorkspace", "getUploadWorkspace", "getUploadPanelElements", "selectUploadFiles", "removePendingUploadFile", "clearDatasetCache", "readDatasetCache", "saveDatasetCache", "getChartStudioMetricKeys", "getDealerFocusRows", "getAreaMetricKeys", "getMainFilters", "filterRowsByFilters", "getCostMethods", "getCostChannels", "normalizeCostChannel", "parseCostFeePaste", "formatDimensionValue", "getCostPeriodSummaries", "captureCostPeriodFromMainRange", "getDealerFocusBaseRows", "computeSummaryFromRows", "renderSubregionTable", "renderAreaChannelTable", "renderDrillDetailTable", "getBusinessDefaultStages", "resetBusinessDataset", "getDailySeries"];
   exports.push("ICE_DISPLAY_MODELS", "getDisplayedModels", "getDefaultOverviewModels", "getDefaultCompareModels", "getDealerFocusDimensionValues", "summarizeByDimension", "computeViewModel", "computeAreaViewModel", "renderAreaRankingChart", "renderCostCalculator", "createDefaultChartCanvas", "normalizeChartCanvasConfig", "computeChartStudioData", "buildChartStudioDataView", "getChartStudioCanvasError", "syncFocusedModel", "applyRoute");
+  exports.push("renderBusinessControls", "renderAlertGanttMarker", "computeAlertCalendars");
+  const paintingStubs = options.routing ? `
+    renderOverview = () => {};
+    renderAreaSection = () => {};
+    renderDealerFocus = () => {};
+    renderCostCalculator = () => {};
+    renderChartStudio = () => {};
+    showFocusLoading = () => {};
+    showDrillLoading = () => {};
+    renderStageManager = () => {};
+    renderCompareControls = () => {};
+    scheduleHomeAlerts = () => {};
+    renderFocus = () => {};
+    renderDrill = () => {};
+    finishRenderTask = () => {};
+  ` : "renderAll = () => { renderBusinessControls(); };";
   const instrumented = inline.replace("        bindEvents();", `
     globalThis.app = {${exports.join(",")}};
-    renderAll = () => { renderBusinessControls(); };
+    ${paintingStubs}
     showUploadWorkspaceLoading = () => {};
     setComputeState = () => {};
     showToast = () => {};
   `).replace("        bootDataset();", "");
   vm.runInContext(instrumented, context);
-  return { app: context.app, context, records, window };
+  return {
+    app: context.app, context, records, window, metricCells,
+    addMetricMarkup(source) { const cells = metricCellsFromMarkup(source); metricCells.push(...cells); return cells; },
+  };
 }
 
 const iceHeaders = ["大区", "小区", "专营店名称", "专营店编码", "集团名称", "车系名称", "渠道", "大项目名", "媒体名称", "线索总量", "有效线索量", "到店量", "订单总量", "成交量", "总交车量"];
@@ -109,6 +160,57 @@ function workbook(headers, rows) {
 }
 function file(name, wb) { const bytes = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }); return { name, size: bytes.length, lastModified: 1, async arrayBuffer() { return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength); } }; }
 const plain = (value) => JSON.parse(JSON.stringify(value));
+
+async function verifyUploadRoutingLabels() {
+  const fixture = createApp(new Map(), { routing: true });
+  const { app, window } = fixture;
+  await app.bootDataset();
+  const row = [...nevRows[0]];
+  row[9] = 100;
+  const nextRow = [...row]; nextRow[0] = "2026-09-02"; nextRow[9] = 300;
+  await app.processUploadedFiles([file("NEV-2026-09.xlsx", workbook(nevHeaders, [row, nextRow]))], "NEV");
+  assert.equal(app.getUploadWorkspace("NEV").uploadStatus, "success");
+  const alert = app.computeAlertCalendars().calendars.flatMap((calendar) => calendar.cells).find((cell) => cell.item)?.item;
+  assert.ok(alert, "Uploaded data must generate an actual surge alert");
+  const markerMarkup = app.renderAlertGanttMarker({ item: alert, left: 50, row: 0 }, "");
+  const [marker] = fixture.addMetricMarkup(markerMarkup);
+  assert.equal(marker.dataset.metricLabel, "新增线索量");
+  const markerBefore = { attributes: { ...marker.attributes }, text: marker.textContent };
+  const routes = [
+    ["area", "areaSection"], ["dealer-focus", "dealerFocusSection"],
+    ["cost-calculator", "costCalculatorSection"], ["chart-studio", "chartStudioSection"],
+    ["model-drill?model=N7", "focusSection"], ["home", "overviewSection"],
+  ];
+  for (const [hash, section] of routes) {
+    window.location.hash = `#${hash}`;
+    assert.doesNotThrow(() => app.applyRoute(), `Route after upload: ${hash}`);
+    assert.equal(app.state.view, hash.split("?")[0]);
+    assert.equal(app.els[section].classList.contains("is-hidden"), false);
+    for (const other of ["overviewSection", "areaSection", "dealerFocusSection", "costCalculatorSection", "chartStudioSection", "focusSection"]) {
+      if (other !== section) assert.equal(app.els[other].classList.contains("is-hidden"), true, `${hash}: ${other} must be hidden`);
+    }
+    assert.deepEqual({ attributes: marker.attributes, text: marker.textContent }, markerBefore, "Route changes must not modify alert metadata or contents");
+  }
+  await app.processUploadedFiles([file("ICE-2026-09.xlsx", workbook(iceHeaders, iceRows))], "ICE");
+  app.activateBusiness("ICE");
+  const lockHeader = fixture.metricCells.find((cell) => cell.dataset.metricLabelKey === "lockOrder");
+  assert.equal(lockHeader.textContent, "成交量");
+  assert.equal(marker.dataset.metricLabel, "新增线索量");
+  app.activateBusiness("NEV");
+  assert.equal(lockHeader.textContent, "锁单量");
+  assert.deepEqual({ attributes: marker.attributes, text: marker.textContent }, markerBefore);
+  const reloaded = createApp(fixture.records, { routing: true });
+  reloaded.addMetricMarkup(markerMarkup);
+  reloaded.window.location.hash = "#dealer-focus";
+  await reloaded.app.bootDataset();
+  assert.equal(reloaded.app.state.view, "dealer-focus");
+  assert.equal(reloaded.app.els.dealerFocusSection.classList.contains("is-hidden"), false);
+  const unknown = new Element(); unknown.setAttribute("data-metric-label-key", "unknownMetric"); unknown.textContent = "Keep this label";
+  fixture.metricCells.push(unknown);
+  assert.doesNotThrow(() => app.renderBusinessControls());
+  assert.equal(unknown.textContent, "Keep this label");
+  console.log("上传生成异动标记后，所有路由内容切换、NEV / ICE 表头更新、日历元数据保留及缓存恢复回归通过。");
+}
 
 async function verifyIceModelVisibility() {
   const fixture = createApp();
@@ -234,6 +336,7 @@ async function verifyIceModelVisibility() {
 }
 
 async function main() {
+  await verifyUploadRoutingLabels();
   await verifyIceModelVisibility();
   const { app, records, context } = createApp();
   const iceWb = workbook(iceHeaders, iceRows);

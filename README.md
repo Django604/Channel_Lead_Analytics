@@ -39,7 +39,7 @@
 ## 验证
 
 - `npm run verify:chart-categories`：分类选择及分月图表回归。
-- `npm run verify:business-sectors`：NEV / ICE 上传、清洗、缓存兼容和状态隔离回归，使用合成数据，无须浏览器。
+- `npm run verify:business-sectors`：NEV / ICE 上传、清洗、缓存兼容和状态隔离回归；覆盖上传产生异动标记后的各路由内容切换与表头标签更新，使用合成数据，无须浏览器。
 - `node scripts/verify-business-sectors.js "ICE数据.xlsx" "知识库.xlsx"`：额外只读核对真实文件的车型转换及指标合计，不写入源 Excel。
 - `npm run verify:model-focus`：包括 NEV / ICE 上传与切换在内的浏览器交互回归，需要可启动的 Microsoft Edge。
 

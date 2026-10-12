@@ -488,6 +488,48 @@ async function verifyComparisonTrendStates(page) {
   console.log("车型分析同车型/跨车型双区间趋势与空对比范围展示验证通过。");
 }
 
+async function verifyUploadedAlertRouting(page) {
+  const base64 = await page.evaluate(() => {
+    const workbook = XLSX.utils.book_new();
+    const headers = ["日期", "大区", "小区", "专营店", "集团", "意向基准车系", "渠道", "大项目名", "媒体名称", "新增线索量", "有效线索量", "新增到店量", "有效试驾量", "大定量", "锁单量", "交车量"];
+    const row = ["2026-09-01", "西区", "西一", "甲店", "集团", "N7", "R3天网行动", "项目", "媒体", 100, 80, 20, 10, 8, 6, 4];
+    const nextRow = [...row]; nextRow[0] = "2026-09-02"; nextRow[9] = 300;
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers, row, nextRow]), "NEV");
+    return XLSX.write(workbook, { bookType: "xlsx", type: "base64" });
+  });
+  await page.locator('#uploadTrigger').click();
+  await page.locator('#fileInput').setInputFiles({
+    name: "NEV-route-2026-09.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from(base64, "base64"),
+  });
+  await page.locator('#uploadStartBtn').click();
+  await page.waitForFunction(() => document.querySelector('#uploadFeedback .upload-feedback-title')?.textContent === "上传成功");
+  await page.locator('#uploadModalClose').click();
+  await page.waitForFunction(() => document.querySelector('.alert-gantt-marker[data-metric-label]') && document.querySelector('#computeStatusText')?.textContent.includes("计算完成"));
+  const readMarkers = () => page.locator('.alert-gantt-marker[data-metric-label]').evaluateAll((markers) => markers.map((marker) => ({
+    key: marker.dataset.metricKey, label: marker.dataset.metricLabel,
+    title: marker.title, ariaLabel: marker.getAttribute('aria-label'), text: marker.textContent.trim(),
+  })));
+  const markers = await readMarkers();
+  assert.ok(markers.some((marker) => marker.key === "newLead" && marker.label === "新增线索量"));
+  for (const [route, section] of [
+    ["area", "areaSection"], ["dealer-focus", "dealerFocusSection"],
+    ["cost-calculator", "costCalculatorSection"], ["chart-studio", "chartStudioSection"],
+    ["model", "focusSection"], ["home", "overviewSection"],
+  ]) {
+    await page.locator(`[data-ui-route="${route}"]:visible`).first().click();
+    await page.waitForFunction((id) => !document.getElementById(id).classList.contains("is-hidden") && document.querySelector('#computeStatusText')?.textContent.includes("计算完成"), section);
+    assert.deepEqual(await readMarkers(), markers, `${route} must preserve alert marker contents and metadata`);
+  }
+  await page.locator('[data-business="ICE"]').click();
+  assert.equal(await page.locator('[data-metric-label-key="lockOrder"]').first().textContent(), "成交量");
+  await page.locator('[data-business="NEV"]').click();
+  await page.waitForFunction(() => document.querySelector('#computeStatusText')?.textContent.includes("计算完成"));
+  assert.equal(await page.locator('[data-metric-label-key="lockOrder"]').first().textContent(), "锁单量");
+  assert.deepEqual(await readMarkers(), markers);
+  console.log("上传产生异动日历后，侧栏所有页面切换与 NEV / ICE 标签隔离的浏览器回归通过。");
+}
+
 async function verifyOverviewCardLayout(page) {
   const originalViewport = page.viewportSize();
   try {
@@ -771,6 +813,7 @@ async function main() {
       });
     }
     await verifyBusinessSectorUi(page);
+    await verifyUploadedAlertRouting(page);
     assert.deepEqual(pageErrors, []);
     console.log("车型切换、探陆固定排除与区域车型堆积验证通过。");
   } finally {
