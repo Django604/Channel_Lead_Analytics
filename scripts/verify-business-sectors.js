@@ -94,6 +94,7 @@ function metricCellsFromMarkup(source) {
 
 function createApp(records = new Map(), options = {}) {
   const nodes = new Map();
+  const toasts = [];
   const selectIds = new Set([...html.matchAll(/<select\b[^>]*\bid="([^"]+)"/g)].map((match) => match[1]));
   const node = (id) => { if (!nodes.has(id)) nodes.set(id, new Element(selectIds.has(id) ? "SELECT" : "DIV", id)); return nodes.get(id); };
   for (const business of ["NEV", "ICE"]) {
@@ -109,9 +110,10 @@ function createApp(records = new Map(), options = {}) {
     },
   };
   const window = { REPORT_DATA: { rows: [], schema: ["newLead", "validLead", "newStoreVisit", "validTestDrive", "bigOrder", "lockOrder", "delivery"], generatedAt: "", sourceFile: "", rowCount: 0, availableDimensions: [] }, indexedDB: fakeIndexedDB(records), location: { hash: "#home", href: "http://localhost/" } };
+  if (options.defaultData) window.REPORT_DATA = structuredClone(options.defaultData);
   window.setTimeout = setTimeout; window.clearTimeout = clearTimeout;
   window.history = { replaceState: (_a, _b, hash) => { window.location.hash = hash; } };
-  const context = vm.createContext({ structuredClone, TextDecoder, TextEncoder, URL, URLSearchParams, Uint8Array, ArrayBuffer, Blob, XLSX, setTimeout, clearTimeout, console: { warn() {}, log() {} }, performance, document, window, indexedDB: window.indexedDB, requestAnimationFrame: (callback) => callback() });
+  const context = vm.createContext({ structuredClone, TextDecoder, TextEncoder, URL, URLSearchParams, Uint8Array, ArrayBuffer, Blob, XLSX, setTimeout, clearTimeout, console: { warn() {}, log() {} }, performance, document, window, indexedDB: window.indexedDB, toasts, requestAnimationFrame: (callback) => callback() });
   const exports = ["state", "els", "ICE_MODEL_NAMES", "METRICS", "CHART_STUDIO_CALCULATED_METRICS", "getDatasetHeaderFields", "cleanUploadedChannel", "cleanUploadedModel", "getUploadMonth", "buildDatasetFromWorkbook", "buildDatasetFromWorkbookFiles", "mergeDatasets", "decodeDataset", "createExcelUploadWorkerSource", "parseUploadedFilesOnMainThread", "processUploadedFiles", "initDataset", "bootDataset", "activateBusiness", "captureBusinessWorkspace", "getUploadWorkspace", "getUploadPanelElements", "selectUploadFiles", "removePendingUploadFile", "clearDatasetCache", "readDatasetCache", "saveDatasetCache", "getChartStudioMetricKeys", "getDealerFocusRows", "getAreaMetricKeys", "getMainFilters", "filterRowsByFilters", "getCostMethods", "getCostChannels", "normalizeCostChannel", "parseCostFeePaste", "formatDimensionValue", "getCostPeriodSummaries", "captureCostPeriodFromMainRange", "getDealerFocusBaseRows", "computeSummaryFromRows", "renderSubregionTable", "renderAreaChannelTable", "renderDrillDetailTable", "getBusinessDefaultStages", "resetBusinessDataset", "getDailySeries"];
   exports.push("ICE_DISPLAY_MODELS", "getDisplayedModels", "getDefaultOverviewModels", "getDefaultCompareModels", "getDealerFocusDimensionValues", "summarizeByDimension", "computeViewModel", "computeAreaViewModel", "renderAreaRankingChart", "renderCostCalculator", "createDefaultChartCanvas", "normalizeChartCanvasConfig", "computeChartStudioData", "buildChartStudioDataView", "getChartStudioCanvasError", "syncFocusedModel", "applyRoute");
   exports.push("renderBusinessControls", "renderAlertGanttMarker", "computeAlertCalendars");
@@ -133,13 +135,14 @@ function createApp(records = new Map(), options = {}) {
   const instrumented = inline.replace("        bindEvents();", `
     globalThis.app = {${exports.join(",")}};
     ${paintingStubs}
+    ${options.setup || ""}
     showUploadWorkspaceLoading = () => {};
     setComputeState = () => {};
-    showToast = () => {};
+    showToast = (message, type = "success") => toasts.push({ message, type });
   `).replace("        bootDataset();", "");
   vm.runInContext(instrumented, context);
   return {
-    app: context.app, context, records, window, metricCells,
+    app: context.app, context, records, window, metricCells, toasts,
     addMetricMarkup(source) { const cells = metricCellsFromMarkup(source); metricCells.push(...cells); return cells; },
   };
 }
@@ -335,7 +338,126 @@ async function verifyIceModelVisibility() {
   console.log("ICE 指定 7 个车型展示、全车型及分月汇总、成本与区域总量、图表明细、隐藏车型入口、缓存保留和 NEV 隔离验证通过。");
 }
 
+async function verifyDeployedReset() {
+  for (const workflow of ["deploy-pages.yml", "deploy-cloudflare-pages.yml"]) {
+    const source = fs.readFileSync(path.resolve(__dirname, "../.github/workflows", workflow), "utf8");
+    const placeholder = source.match(/cat > site\/report-data\.js <<'EOF'\r?\n([\s\S]*?)\r?\n\s*EOF/)[1];
+    const sandbox = { window: {} };
+    vm.runInNewContext(placeholder, sandbox);
+    const defaultData = sandbox.window.REPORT_DATA;
+    assert.equal(defaultData.rows.length, 0, `${workflow} must publish no business rows`);
+    assert.equal(defaultData.sourceFile, "");
+    assert.equal(defaultData.rowCount, 0);
+    const fixture = createApp(new Map(), { routing: true, defaultData, setup: `
+      const originalClearDatasetCache = clearDatasetCache;
+      clearDatasetCache = async (business) => {
+        await new Promise((resolve) => { globalThis.finishReset = resolve; });
+        return originalClearDatasetCache(business);
+      };
+    ` });
+    const { app, records, context, toasts } = fixture;
+    await app.bootDataset();
+    const row = [...nevRows[0]]; row[9] = 100;
+    const next = [...row]; next[0] = "2026-09-02"; next[9] = 300;
+    await app.processUploadedFiles([file("NEV-2026-09.xlsx", workbook(nevHeaders, [row, next]))], "NEV");
+    const alert = app.computeAlertCalendars().calendars.flatMap((calendar) => calendar.cells).find((cell) => cell.item)?.item;
+    assert.ok(alert);
+    fixture.addMetricMarkup(app.renderAlertGanttMarker({ item: alert, left: 50, row: 0 }, ""));
+    await app.processUploadedFiles([file("ICE-2026-09.xlsx", workbook(iceHeaders, iceRows))], "ICE");
+    for (const business of ["NEV", "ICE"]) {
+      app.activateBusiness(business);
+      app.els.regionSelect.value = "西区";
+      app.els.channelSelect.value = app.state.dataset.channels[0];
+      app.state.costCalculator.fees[app.state.costCalculator.periods[0].id].R3 = 123;
+      const other = business === "NEV" ? "ICE" : "NEV";
+      const otherCacheKey = other === "NEV" ? "latest-upload" : "latest-upload-ICE";
+      const otherCache = plain(records.get(otherCacheKey) || null);
+      const otherSlot = app.state.businesses[other];
+      const reset = app.resetBusinessDataset();
+      assert.equal(app.state.resetting, true);
+      assert.equal(app.els.resetData.disabled, true);
+      assert.equal(app.els.resetData.textContent, `正在恢复 ${business}…`);
+      await app.resetBusinessDataset(); // Repeated clicks must not start another reset.
+      context.finishReset();
+      await reset;
+      assert.equal(app.state.resetting, false);
+      assert.equal(app.els.resetData.disabled, false);
+      assert.equal(app.state.business, business);
+      assert.equal(app.state.dataset.rowCount, 0);
+      assert.equal(app.els.metaRowCount.textContent, "0 行");
+      assert.equal(app.els.regionSelect.value, "全部");
+      assert.equal(app.els.channelSelect.value, "全部");
+      assert.equal(app.getUploadWorkspace(business).pendingUploadFiles.length, 0);
+      assert.ok(Object.values(app.state.costCalculator.fees).every((fees) => !Object.keys(fees).length));
+      assert.equal(records.has(business === "NEV" ? "latest-upload" : "latest-upload-ICE"), false);
+      assert.deepEqual(plain(records.get(otherCacheKey) || null), otherCache);
+      assert.equal(app.state.businesses[other], otherSlot);
+      assert.equal(toasts.at(-1).type, "success");
+      assert.match(toasts.at(-1).message, new RegExp(`${business}.*已恢复默认.*重新上传`));
+      const reloaded = createApp(records, { routing: true, defaultData });
+      await reloaded.app.bootDataset();
+      reloaded.app.activateBusiness(business);
+      assert.equal(reloaded.app.state.dataset.rowCount, 0, "Cleared uploads must not return after reload");
+      reloaded.app.activateBusiness(other);
+      assert.equal(reloaded.app.state.dataset.rowCount, other === "ICE" ? 3 : 0);
+    }
+  }
+  const local = createApp();
+  local.window.REPORT_DATA = await local.app.buildDatasetFromWorkbook(workbook(nevHeaders, [nevRows[0]]), "NEV-default.xlsx", { business: "NEV" });
+  await local.app.bootDataset();
+  const uploadedRow = [...nevRows[0]]; uploadedRow[9] = 500;
+  await local.app.processUploadedFiles([file("NEV.xlsx", workbook(nevHeaders, [uploadedRow]))], "NEV");
+  local.app.els.regionSelect.value = "西区";
+  local.app.els.modelSelect.value = "N7";
+  await local.app.resetBusinessDataset();
+  assert.equal(local.app.computeSummaryFromRows(local.app.state.dataset.rows).newLead, 50);
+  assert.equal(local.app.els.regionSelect.value, "全部");
+  assert.equal(local.app.els.modelSelect.value, "全部");
+  assert.match(local.toasts.at(-1).message, /已恢复默认数据/);
+  const missingDefaults = createApp();
+  delete missingDefaults.window.REPORT_DATA;
+  delete missingDefaults.window.indexedDB;
+  await missingDefaults.app.bootDataset();
+  await missingDefaults.app.processUploadedFiles([file("NEV.xlsx", workbook(nevHeaders, nevRows))], "NEV");
+  await missingDefaults.app.resetBusinessDataset();
+  assert.equal(missingDefaults.app.state.dataset.rowCount, 0);
+  assert.equal(missingDefaults.app.els.resetData.disabled, false);
+  const fixture = createApp(new Map(), { setup: `
+    const originalRenderBusinessControls = renderBusinessControls;
+    renderBusinessControls = () => {
+      originalRenderBusinessControls();
+      if (globalThis.failNextControlsRender) { globalThis.failNextControlsRender = false; throw new Error("模拟表头刷新失败"); }
+    };
+    const originalClearDatasetCache = clearDatasetCache;
+    clearDatasetCache = async (business) => {
+      if (globalThis.failCacheClear) throw new Error("模拟缓存清理失败");
+      return originalClearDatasetCache(business);
+    };
+  ` });
+  const { app, context, records, toasts } = fixture;
+  await app.bootDataset();
+  await app.processUploadedFiles([file("NEV.xlsx", workbook(nevHeaders, nevRows))], "NEV");
+  const dataset = app.state.dataset;
+  const cache = plain(records.get("latest-upload"));
+  context.failNextControlsRender = true;
+  await assert.doesNotReject(app.resetBusinessDataset(), "A reset error must release the controls");
+  assert.equal(app.state.resetting, false);
+  assert.equal(app.els.resetData.disabled, false);
+  assert.equal(app.state.dataset, dataset);
+  assert.deepEqual(plain(records.get("latest-upload")), cache);
+  assert.equal(toasts.at(-1).type, "error");
+  context.failCacheClear = true;
+  await app.resetBusinessDataset();
+  assert.equal(app.state.resetting, false);
+  assert.equal(app.els.resetData.disabled, false);
+  assert.equal(app.state.dataset, dataset);
+  assert.deepEqual(plain(records.get("latest-upload")), cache);
+  assert.match(toasts.at(-1).message, /缓存清理失败/);
+  console.log("两套部署空数据配置下 NEV / ICE 独立恢复、异动标签、按钮状态、失败解锁和刷新缓存回归通过。");
+}
+
 async function main() {
+  await verifyDeployedReset();
   await verifyUploadRoutingLabels();
   await verifyIceModelVisibility();
   const { app, records, context } = createApp();

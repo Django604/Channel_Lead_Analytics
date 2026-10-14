@@ -11067,12 +11067,12 @@
         }
 
         function createEmptyBusinessDataset(business) {
-          if (business === "NEV") return decodeDataset(window.REPORT_DATA, window.REPORT_DATA.rows.length ? "默认预构建数据" : "尚未上传 NEV 数据");
+          if (business === "NEV" && isDatasetUsable(window.REPORT_DATA)) return decodeDataset(window.REPORT_DATA, window.REPORT_DATA.rows.length ? "默认预构建数据" : "尚未上传 NEV 数据");
           return decodeDataset({
             business, schema: [...DATASET_DIMENSION_FIELDS.map((field) => field.schemaKey), ...DATASET_METRIC_FIELDS.map((field) => field.key)],
             rows: [], rowCount: 0, generatedAt: "", sourceFile: "", availableDimensions: [], completeDimensions: [],
-            availableMetrics: ["newLead", "validLead", "newStoreVisit", "bigOrder", "lockOrder"],
-          }, "尚未上传 ICE 数据");
+            availableMetrics: business === "NEV" ? DATASET_METRIC_FIELDS.map((field) => field.key) : ["newLead", "validLead", "newStoreVisit", "bigOrder", "lockOrder"],
+          }, `尚未上传 ${business} 数据`);
         }
 
         function captureBusinessWorkspace() {
@@ -11102,7 +11102,7 @@
             button.setAttribute("aria-pressed", String(button.dataset.business === state.business));
             button.disabled = state.resetting;
           });
-          els.resetData.textContent = `恢复 ${state.business} 默认`;
+          els.resetData.textContent = state.resetting ? `正在恢复 ${state.business}…` : `恢复 ${state.business} 默认`;
           els.resetData.disabled = isBusinessUploadRunning() || state.resetting;
           els.uploadTrigger.disabled = state.resetting;
           document.querySelectorAll("[data-source-metric]").forEach((cell) => { cell.hidden = !isMetricAvailable(cell.dataset.sourceMetric); });
@@ -11151,17 +11151,20 @@
           if (isBusinessUploadRunning() || state.resetting) return;
           const business = state.business;
           state.resetting = true;
-          renderBusinessControls();
           try {
+            renderBusinessControls();
+            const defaults = createEmptyBusinessDataset(business);
             await clearDatasetCache(business);
             state.businesses[business].workspace = null;
             state.businesses[business].upload = null;
             Object.assign(state, structuredClone(initialBusinessWorkspace));
-            initDataset(createEmptyBusinessDataset(business));
-            renderUploadModal();
+            ["regionSelect", "subregionSelect", "channelSelect", "modelSelect"].forEach((key) => { els[key].value = "全部"; });
+            Object.keys(state.charts).forEach(disposeChart);
+            initDataset(defaults);
+            showToast(state.dataset.rowCount ? `${business} 已恢复默认数据。` : `${business} 已恢复默认，上传数据已清除，可重新上传 Excel。`);
           } catch (error) {
             showToast(`恢复默认失败：${error.message}`, "error");
-          } finally { state.resetting = false; renderBusinessControls(); }
+          } finally { state.resetting = false; renderUploadModal(); }
         }
 
         function renderUploadModal() {

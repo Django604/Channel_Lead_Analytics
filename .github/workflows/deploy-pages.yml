@@ -36,6 +36,9 @@ jobs:
       - name: Check JavaScript
         run: node --check ui-optimized.js
 
+      - name: Verify uploads and data-free reset
+        run: npm run verify:business-sectors
+
       - name: Build data-free static site
         shell: bash
         run: |
